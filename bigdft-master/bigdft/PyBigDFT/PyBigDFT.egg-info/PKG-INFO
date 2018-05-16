@@ -1,0 +1,20 @@
+Metadata-Version: 1.0
+Name: PyBigDFT
+Version: 0.1
+Summary: Python module for BigDFT drivers and analysis
+Home-page: www.bigdft.org
+Author: Luigi Genovese
+Author-email: luigi.genovese@cea.fr
+License: GNU-GPL
+Description: 
+        Welcome to the PyBigDFT module. This module contains python programs to drive and analyse BigDFT calculations.
+        The different calculations which are performed with BigDFT code will be also possible thanks to some of the functions 
+        which are present in this package.
+        
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: End Users/Developers
+Classifier: Topic :: Software Development :: Analysis and Running Tools
+Classifier: License :: OSI Approved :: GNU General Public License (GPL)
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.7

@@ -1,0 +1,16 @@
+README
+setup.py
+BigDFT/BZ.py
+BigDFT/Calculators.py
+BigDFT/DoS.py
+BigDFT/Fragments.py
+BigDFT/Logfiles.py
+BigDFT/__init__.py
+BigDFT/wahba.py
+BigDFT/scripts/DeltaTest.py
+BigDFT/scripts/__init__.py
+PyBigDFT.egg-info/PKG-INFO
+PyBigDFT.egg-info/SOURCES.txt
+PyBigDFT.egg-info/dependency_links.txt
+PyBigDFT.egg-info/requires.txt
+PyBigDFT.egg-info/top_level.txt
