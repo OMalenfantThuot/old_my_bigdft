@@ -585,8 +585,7 @@ contains
     real(gp), dimension(:), allocatable :: elastic_gradient
 
     !! total gradient on each replica ( climbing_img image is used if needed )
-    !! only the component of the PES gradient ortogonal to the path is taken
-    !into
+    !! only the component of the PES gradient ortogonal to the path is taken into
     !! account
     if (climbing) then
        grad = - PES_forces + 2.D0 * dot_product( PES_forces , tgt ) * tgt
@@ -597,13 +596,12 @@ contains
           !! elastic gradient ( variable elastic constant is used )
           elastic_gradient = &
                ( k(2) * ( cubic_pbc( pos0 - posm1, Lx, Ly, Lz ) ) - &
-                 k(3) * ( cubic_pbc( posp1 - pos0, Lx, Ly, Lz ) ) )
+                 k(3) * ( cubic_pbc( posp1 - pos0, Lx, Ly, Lz ) ) ) 
        ELSE
-          !! elastic gradient only along the path ( variable elastic constant is
-          !used )  
+          !! elastic gradient only along the path ( variable elastic constant is used )  
           elastic_gradient = &
-              dot_product( ( k(2) * cubic_pbc( pos0 - posm1, Lx, Ly, Lz) - &
-                             k(3) * cubic_pbc( posp1 - pos0, Lx, Ly, Lz) ) , tgt) * tgt
+               ( k(2) * norm( cubic_pbc( pos0 - posm1, Lx, Ly, Lz ) ) - &
+                 k(3) * norm( cubic_pbc( posp1 - pos0, Lx, Ly, Lz ) ) ) * tgt
        END IF
 
        grad = - PES_forces + elastic_gradient + dot_product( PES_forces, tgt ) * tgt
