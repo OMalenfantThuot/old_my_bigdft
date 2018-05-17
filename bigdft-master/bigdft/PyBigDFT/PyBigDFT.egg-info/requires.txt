@@ -1,0 +1,4 @@
+Pyfutile
+ase
+matplotlib
+numpy
