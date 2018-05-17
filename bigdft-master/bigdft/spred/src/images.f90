@@ -602,9 +602,6 @@ contains
           elastic_gradient = &
                ( k(2) * norm( cubic_pbc( pos0 - posm1, Lx, Ly, Lz ) ) - &
                  k(3) * norm( cubic_pbc( posp1 - pos0, Lx, Ly, Lz ) ) ) * tgt
-       !   elastic_gradient = &
-       !       dot_product( ( k(2) * cubic_pbc( posm1 - pos0, Lx, Ly, Lz) + &
-       !                      k(3) * cubic_pbc( posp1 - pos0, Lx, Ly, Lz) ) , tgt) * tgt
        END IF
 
        grad = - PES_forces + elastic_gradient + dot_product( PES_forces, tgt ) * tgt
