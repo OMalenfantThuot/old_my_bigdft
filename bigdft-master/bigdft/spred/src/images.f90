@@ -485,11 +485,11 @@ contains
     type(run_image), dimension(:), intent(inout) :: imgs
     real(gp), intent(in) :: tolerance !< tolerance for fix atoms.
 
-    real(gp), dimension(:,:), allocatable :: d_R
+    real(gp), dimension(:,:), allocatable :: d_R, delta
     integer :: i, istart, istop, j, nat
     
     nat = imgs(1)%run%atoms%astruct%nat
-    ALLOCATE( d_R(3, nat) )
+    ALLOCATE( d_R(3, nat) , delta(3, nat) )
 
     istart = 1
     ! We set the coordinates for all empty images.
@@ -508,14 +508,20 @@ contains
     END DO
 
     d_R = ( imgs(size(imgs))%run%atoms%astruct%rxyz - imgs(1)%run%atoms%astruct%rxyz )
-    do i = 1, size(imgs)
-       imgs(i)%fix_atoms=f_malloc_ptr([3,nat],id='fix_atoms')
-       !ALLOCATE( imgs(i)%fix_atoms(3, nat) )      
-       imgs(i)%fix_atoms = 1
-       WHERE ( ABS( d_R ) <=  tolerance ) imgs(i)%fix_atoms = 0
-    end do
 
-    DEALLOCATE( d_R )
+    DO i = 1, size(imgs)
+       imgs(i)%fix_atoms=f_malloc_ptr([3,nat],id='fix_atoms')
+       imgs(i)%fix_atoms = 1
+       !tolerance compared to total displacement of the atoms instead of each
+       !coordinate displacement
+       delta = 0
+       do j = 1, nat
+          delta(:,j) = sqrt(d_R(1,j)**2 + d_R(2,j)**2 + d_R(3,j)**2)
+       end do
+       WHERE ( ABS( delta ) <=  tolerance ) imgs(i)%fix_atoms = 0
+    END DO
+
+    DEALLOCATE( d_R , delta )
   end subroutine images_init_path
 
 
