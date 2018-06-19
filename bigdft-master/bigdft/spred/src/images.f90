@@ -582,7 +582,8 @@ contains
     real(gp), dimension(2:3), intent(in) :: k
     logical, intent(in) :: full, climbing
 
-    real(gp), dimension(:), allocatable :: elastic_gradient
+    real(gp), parameter :: Pi = 3.14159265359
+    real(gp), dimension(:), allocatable :: elastic_gradient, cos_phi, switching, spring_ortho
 
     !! total gradient on each replica ( climbing_img image is used if needed )
     !! only the component of the PES gradient ortogonal to the path is taken into
@@ -604,9 +605,22 @@ contains
                  k(3) * norm( cubic_pbc( posp1 - pos0, Lx, Ly, Lz ) ) ) * tgt
        END IF
 
-       grad = - PES_forces + elastic_gradient + dot_product( PES_forces, tgt ) * tgt
+       ! Terme de NEB selon l'article Jonsson et al., 1998.
+       allocate(cos_phi(ndim))
+       allocate(switching(ndim))
+       allocate(spring_ortho(ndim))
+       cos_phi = dot_product((posp1 - pos0), (pos0 - posm1)) / (norm(posp1 - pos0) * norm(pos0 - posm1))
+       switching = 0.5 * (1 + cos(Pi * cos_phi))
+       spring_ortho = ( ( k(2) * cubic_pbc(pos0 - posm1, Lx, Ly, Lz)   &
+                        - k(3) * cubic_pbc(posp1 - pos0, Lx, Ly, Lz) ) &
+                        - elastic_gradient )
+
+       grad = - PES_forces + elastic_gradient + dot_product( PES_forces, tgt ) * tgt + switching * spring_ortho
 
        deallocate(elastic_gradient)
+       deallocate(cos_phi)
+       deallocate(switching)
+       deallocate(spring_ortho)
     end if
   END SUBROUTINE compute_local_gradient
 
