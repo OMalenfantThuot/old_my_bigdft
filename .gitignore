@@ -174,3 +174,4 @@ chess/missing
 .ipynb_checkpoints*/
 *.pyc
 *.pyo
+._*
