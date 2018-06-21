@@ -1216,7 +1216,7 @@ subroutine image_calculate(img, iteration, id)
   !img%run%inputs%inputpsiid = 0
   call bigdft_set_input_policy(INPUT_POLICY_SCRATCH,img%run)
   if (iteration > 0 .and. abs(img%id - id) < 2) &
-       call bigdft_set_input_policy(INPUT_POLICY_MEMORY,img%run) !img%run%inputs%inputpsiid = 1
+       call bigdft_set_input_policy(INPUT_POLICY_SCRATCH,img%run) !img%run%inputs%inputpsiid = 0
 
   unit_log = 0
   img%id = id
