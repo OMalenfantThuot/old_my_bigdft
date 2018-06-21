@@ -1,7 +1,7 @@
 !> @file
 !!  Module to store all dictionary keys of the input files.
 !! @author
-!!    Copyright (C) 2010-2015 BigDFT group
+!!    Copyright (C) 2010-2018 BigDFT group
 !!    This file is distributed under the terms of the
 !!    GNU General Public License, see ~/COPYING file
 !!    or http://www.gnu.org/copyleft/gpl.txt .
@@ -211,6 +211,7 @@ module module_input_keys
      !!   - 1 : read waves from argument psi, using n1, n2, n3, hgrid and rxyz_old
      !!         as definition of the previous system.
      !!   - 2 : read waves from disk
+     type(f_enumerator) :: projection !< Method to compute the projectors from atomic description.
      integer :: nspin       !< Spin components (no spin 1, collinear 2, non collinear 4)
      integer :: mpol        !< Total spin polarisation of the system
      integer :: norbv       !< Number of virtual orbitals to compute after direct minimisation
@@ -626,7 +627,7 @@ contains
     use public_enums
     use fragment_base
     use f_utils, only: f_get_free_unit
-    use wrapper_MPI, only: mpibarrier
+    use wrapper_MPI, only: fmpi_barrier
     use abi_interfaces_add_libpaw, only : abi_pawinit
     use PStypes, only: SETUP_VARIABLES,VERBOSITY
     use vdwcorrection, only: vdwcorrection_warnings
@@ -793,7 +794,7 @@ contains
 
     ! Shake atoms, if required.
     call astruct_set_displacement(atoms%astruct, in%randdis)
-    if (bigdft_mpi%nproc > 1) call mpibarrier(bigdft_mpi%mpi_comm)
+    if (bigdft_mpi%nproc > 1) call fmpi_barrier(bigdft_mpi%mpi_comm)
     ! Update atoms with symmetry information
     call astruct_set_symmetries(atoms%astruct, in%disableSym, in%symTol, in%elecfield, in%nspin)
 
@@ -964,7 +965,7 @@ contains
     use yaml_output
     use module_base, only: bigdft_mpi
     use f_utils, only: f_zero,f_mkdir
-    use wrapper_MPI, only: mpibcast
+    use wrapper_MPI, only: fmpi_bcast
     use yaml_strings, only: f_strcpy
     implicit none
     integer, intent(in) :: iproc
@@ -999,7 +1000,7 @@ contains
        if (iproc == 0) then
           call f_mkdir(in%dir_output,dirname)
        end if
-       call mpibcast(dirname,comm=bigdft_mpi%mpi_comm)
+       call fmpi_bcast(dirname,comm=bigdft_mpi%mpi_comm)
        !in%dir_output=dirname
        call f_strcpy(src=dirname,dest=in%dir_output)
        if (iproc==0) call yaml_map('Data Writing directory',trim(in%dir_output))
@@ -1022,14 +1023,15 @@ contains
     use dictionaries
     use PStypes, only: PS_input_dict
     use chess_base, only: chess_input_dict
+    use f_ternary
     !use yaml_output
     implicit none
     type(dictionary), pointer :: dict,dict_minimal
     !local variables
-    type(dictionary), pointer :: as_is,nested,dict_ps_min,dict_chess_min,tmp
+    type(dictionary), pointer :: as_is,nested,dict_ps_min,dict_chess_min,tmp,tmpdft,tmppos
     character(max_field_length) :: meth
     real(gp) :: dtmax_, betax_
-    logical :: free,dftvar
+    logical :: free,dftvar,symbool
     integer :: nat
     integer, parameter :: natoms_dump = 500
 
@@ -1038,7 +1040,18 @@ contains
 
     call f_routine(id='input_keys_fill_all')
 
-    ! Overriding the default for isolated system
+!!$    symbool=.true.
+!!$    free=.false.
+!!$    ! Overriding the default for isolated system
+!!$    tmpdft = dict .get. DFT_VARIABLES
+!!$    if (associated(tmpdft)) symbool=DISABLE_SYM .notin. tmpdft
+!!$    tmppos = dict .get. POSINP
+!!$    if (associated(tmppos)) free =ASTRUCT_CELL .notin. tmppos
+!!$
+!!$    
+!!$    if (free .and. symbool) call set(dict // DFT_VARIABLES // DISABLE_SYM,.true.)
+!!$
+!!$
     if ((POSINP .in. dict) .and. (DFT_VARIABLES .in. dict) ) then
        free=ASTRUCT_CELL .notin. dict//POSINP
        dftvar=DISABLE_SYM .notin. dict//DFT_VARIABLES
@@ -1046,6 +1059,8 @@ contains
           call set(dict // DFT_VARIABLES // DISABLE_SYM,.true.)
        end if
     end if
+
+
     nested=>list_new(.item. LIN_BASIS_PARAMS)
 
 
@@ -1597,6 +1612,8 @@ contains
     use yaml_output, only: yaml_warning
     use yaml_strings, only: operator(.eqv.),is_atoi
     use module_base, only: bigdft_mpi
+    use psp_projectors_base, only: PROJECTION_1D_SEPARABLE, &
+         & PROJECTION_RS_COLLOCATION, PROJECTION_MP_COLLOCATION
     implicit none
     type(input_variables), intent(inout) :: in
     type(dictionary), pointer :: val
@@ -1745,6 +1762,16 @@ contains
        case (INPUTPSIID)
           ipos=val
           call set_inputpsiid(ipos,in%inputPsiId)
+       case (PROJECTION)
+          str=val
+          select case(trim(str))
+          case('gaussian')
+             in%projection=PROJECTION_1D_SEPARABLE
+          case('radial')
+             in%projection=PROJECTION_RS_COLLOCATION
+          case('radial+mp')
+             in%projection=PROJECTION_MP_COLLOCATION
+          end select
        !case (OUTPUT_WF)
        !ipos=val
        !call set_output_wf(ipos,in%output_wf)
@@ -2505,6 +2532,7 @@ contains
     call f_zero(in%dir_perturbation)
     call f_zero(in%outputpsiid)
     call f_zero(in%naming_id)
+    in%projection=f_enumerator_null()
     nullify(in%gen_kpt)
     nullify(in%gen_wkpt)
     nullify(in%kptv)

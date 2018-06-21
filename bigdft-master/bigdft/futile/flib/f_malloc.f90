@@ -238,6 +238,7 @@ module module_f_malloc
   public :: f_malloc,f_malloc0,f_malloc_ptr,f_malloc0_ptr,operator(.to.),operator(.plus.)
   public :: f_malloc_str,f_malloc0_str,f_malloc_str_ptr,f_malloc0_str_ptr
   public :: f_map_ptr,f_malloc_buf,f_malloc0_buf
+  public :: remap_bounds_i2 !to verify if it works
 
 
 contains
@@ -409,6 +410,15 @@ contains
     ptr => heap
   end subroutine remap_bounds_l
 
+
+  subroutine remap_bounds_i2(lb,lu,heap,ptr)
+    implicit none
+    integer(f_kind), dimension(2), intent(in) :: lb,lu
+    integer(f_integer), dimension(lb(1):lu(1),lb(2):lu(2)), intent(in), target :: heap
+    integer(f_integer), dimension(:,:), pointer, intent(out) :: ptr
+    ptr => heap
+  end subroutine remap_bounds_i2
+  
 
 
   !---routines for low-level dynamic memory handling
@@ -1061,34 +1071,52 @@ end module module_f_malloc
 !> trick to use the element of a pointer as an address for subptr
 subroutine f_map_ptr_addr_d0(lb,ub,is,ie,heap,ptr)
   use module_f_malloc, only: f_map_ptr,f_kind
-  use f_precisions, only: f_double
+  use f_precisions, only: f_double,f_loc
+  use dictionaries, only: f_err_throw
   implicit none
   integer(f_kind) :: lb,ub,is,ie
   real(f_double), dimension(*) :: heap
   real(f_double), dimension(:), pointer :: ptr
 
   call f_map_ptr(lb,ub,heap(is:ie),ptr)
+  if (f_loc(ptr(lb)) /= f_loc(heap(is)) .or. &
+       f_loc(ptr(ub)) /= f_loc(heap(ie))) call f_err_throw(&
+       'ERROR (f_subptr): addresses do not match, the allocating system has performed a copy',&
+       err_name='ERR_MALLOC_INTERNAL')
+
 end subroutine f_map_ptr_addr_d0
 
 
 subroutine f_map_ptr_addr_i0(lb,ub,is,ie,heap,ptr)
   use module_f_malloc, only: f_map_ptr,f_kind
-  use f_precisions, only: f_integer
+  use f_precisions, only: f_integer,f_loc
+  use dictionaries, only: f_err_throw
   implicit none
   integer(f_kind) :: lb,ub,is,ie
   integer(f_integer), dimension(*) :: heap
   integer(f_integer), dimension(:), pointer :: ptr
 
   call f_map_ptr(lb,ub,heap(is:ie),ptr)
+  if (f_loc(ptr(lb)) /= f_loc(heap(is)) .or. &
+       f_loc(ptr(ub)) /= f_loc(heap(ie))) call f_err_throw(&
+       'ERROR (f_subptr): addresses do not match, the allocating system has performed a copy',&
+       err_name='ERR_MALLOC_INTERNAL')
+
 end subroutine f_map_ptr_addr_i0
 
 subroutine f_map_ptr_addr_li0(lb,ub,is,ie,heap,ptr)
   use module_f_malloc, only: f_map_ptr,f_kind
-  use f_precisions, only: f_long
+  use f_precisions, only: f_long,f_loc
+  use dictionaries, only: f_err_throw
   implicit none
   integer(f_kind) :: lb,ub,is,ie
   integer(f_long), dimension(*) :: heap
   integer(f_long), dimension(:), pointer :: ptr
 
   call f_map_ptr(lb,ub,heap(is:ie),ptr)
+  if (f_loc(ptr(lb)) /= f_loc(heap(is)) .or. &
+       f_loc(ptr(ub)) /= f_loc(heap(ie))) call f_err_throw(&
+       'ERROR (f_subptr): addresses do not match, the allocating system has performed a copy',&
+       err_name='ERR_MALLOC_INTERNAL')
+
 end subroutine f_map_ptr_addr_li0
