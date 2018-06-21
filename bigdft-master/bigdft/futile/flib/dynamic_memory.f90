@@ -106,7 +106,7 @@ module dynamic_memory_base
      module procedure li1_ptr
      module procedure z1_ptr,z2_ptr
      !strings and pointers for characters
-     module procedure c1_all
+     module procedure c1_all,c2_all
      module procedure c1_ptr
   end interface
 
@@ -122,6 +122,10 @@ module dynamic_memory_base
      module procedure li1_all_free,li2_all_free,li3_all_free,li4_all_free
   end interface f_free
 
+  interface f_free_str
+     module procedure c1_all_free,c2_all_free
+  end interface f_free_str
+
   interface f_free_ptr
      module procedure i1_ptr_free,i2_ptr_free,i3_ptr_free,i4_ptr_free
      module procedure i1_ptr_free_multi
@@ -134,13 +138,15 @@ module dynamic_memory_base
   interface f_memcpy
      module procedure f_memcpy_i0,f_memcpy_i1,f_memcpy_i2,f_memcpy_i3
      module procedure f_memcpy_i0i1,f_memcpy_i1i2,f_memcpy_i1i3,f_memcpy_i2i1,f_memcpy_i2i0,f_memcpy_i3i1
+     module procedure f_memcpy_i1i0
      module procedure f_memcpy_li0,f_memcpy_li1
      module procedure f_memcpy_li0li1,f_memcpy_li1li2,f_memcpy_li2li1,f_memcpy_li2li0
      module procedure f_memcpy_l1
      module procedure f_memcpy_r0,f_memcpy_r0r1
      module procedure f_memcpy_d0,f_memcpy_d1,f_memcpy_d2,f_memcpy_d3,f_memcpy_d0d1
      module procedure f_memcpy_d1d2,f_memcpy_d1d3,f_memcpy_d2d1,f_memcpy_d2d3,f_memcpy_d4,f_memcpy_d1d0
-     module procedure f_memcpy_d0d3,f_memcpy_d0d2,f_memcpy_d3d0,f_memcpy_d2d0,f_memcpy_d3d2,f_memcpy_d6d3
+     module procedure f_memcpy_d0d3,f_memcpy_d0d2,f_memcpy_d3d0,f_memcpy_d2d0
+     module procedure f_memcpy_d3d2,f_memcpy_d6d3
      module procedure f_memcpy_l0,f_memcpy_l0l1
      module procedure f_memcpy_c1i1,f_memcpy_i1c1,f_memcpy_c0i1
      module procedure f_memcpy_c1li1,f_memcpy_li1c1,f_memcpy_c0li1,f_memcpy_z2
@@ -164,6 +170,11 @@ module dynamic_memory_base
      module procedure f_subptr_li1,f_subptr_i1
   end interface f_subptr
 
+  ! for rank-two pointers
+  interface f_subptr2
+     module procedure f_subptr2_i1
+  end interface f_subptr2
+
   interface malloc_validate
      module procedure validate_allocation_all,validate_allocation_ptr
      module procedure validate_allocation_str_ptr,validate_allocation_str_all
@@ -179,7 +190,7 @@ module dynamic_memory_base
   public :: assignment(=),operator(.to.),operator(.plus.)
 
   !for internal f_lib usage
-  public :: dynamic_memory_errors,malloc_validate
+  public :: dynamic_memory_errors,malloc_validate,f_subptr2
 
 contains
 
@@ -1366,14 +1377,6 @@ contains
          'ERROR (f_subptr): expected lbound does not match, '//&
          trim(yaml_toa(get_lbnd(win)))//' vs. '//trim(yaml_toa(lb)),&
          ERR_MALLOC_INTERNAL)
-
-    if (f_loc(win(lb)) /= f_loc(ptr_addr)) &
-         !.or. &
-         !f_loc(win(ub)) /= f_loc(ptr_addr)+int(size,f_address)*kind(ptr_addr)) 
-         call f_err_throw(&
-         'ERROR (f_subptr): addresses do not match, the allocating system has performed a copy',&
-         ERR_MALLOC_INTERNAL)
-
   end function f_subptr_d0
 
   function f_subptr_i0(ptr_addr,region,size,from,lbound) result(win)
@@ -1408,14 +1411,6 @@ contains
          'ERROR (f_subptr): expected lbound does not match, '//&
          trim(yaml_toa(get_lbnd(win)))//' vs. '//trim(yaml_toa(lb)),&
          ERR_MALLOC_INTERNAL)
-
-    if (f_loc(win(lb)) /= f_loc(ptr_addr)) &
-         !.or. &
-         !f_loc(win(ub)) /= f_loc(ptr_addr)+int(size,f_address)*kind(ptr_addr)) 
-         call f_err_throw(&
-         'ERROR (f_subptr): addresses do not match, the allocating system has performed a copy',&
-         ERR_MALLOC_INTERNAL)
-
   end function f_subptr_i0
 
   function f_subptr_li0(ptr_addr,region,size,from,lbound) result(win)
@@ -1450,15 +1445,6 @@ contains
          'ERROR (f_subptr): expected lbound does not match, '//&
          trim(yaml_toa(get_lbnd(win)))//' vs. '//trim(yaml_toa(lb)),&
          ERR_MALLOC_INTERNAL)
-
-    if (f_loc(win(lb)) /= f_loc(ptr_addr)) then
-       !.or. &
-       !f_loc(win(ub)) /= f_loc(ptr_addr)+int(size,f_address)*kind(ptr_addr)) 
-       !print *,f_loc(win(lb)),f_loc(ptr_addr),shape(win),from,size
-       call f_err_throw(&
-            'ERROR (f_subptr): addresses do not match, the allocating system has performed a copy',&
-            ERR_MALLOC_INTERNAL)
-    end if
 
   end function f_subptr_li0
 
@@ -1592,6 +1578,48 @@ contains
     integer :: get_lbnd
     get_lbnd=lbound(win,1)
   end function get_lbnd_li0
+
+  pure function get_lbnd2_i0(win) result(get_lbnd)
+    implicit none
+    integer(f_integer), dimension(:,:), pointer :: win
+    integer, dimension(2) :: get_lbnd
+    get_lbnd=lbound(win)
+  end function get_lbnd2_i0
+
+
+  !>points toward a region of a given pointer
+  function f_subptr2_i1(ptr,shape,from,lbound) result(win)
+    implicit none
+    integer(f_integer), dimension(:), target :: ptr
+    integer(f_integer), dimension(:,:), pointer :: win
+    integer, dimension(2), intent(in) :: shape
+    integer, intent(in), optional :: from
+    integer, dimension(2), intent(in), optional :: lbound !<in the case of different bounds for the pointer
+    !local variables
+    integer :: size
+    integer(f_kind), dimension(2) :: lbs,ubs
+    integer, dimension(:), pointer :: ptr2
+
+    nullify(win)
+    lbs=1
+    if (present(lbound)) lbs=lbound
+    ubs=lbs+shape-1
+    size=int(product(shape))
+    ptr2 => f_subptr(ptr,from=from,size=size)
+    call remap_bounds_i2(lbs,ubs,ptr2,win)
+
+    !then perform the check for the subpointer region
+    if (any(get_lbnd2_i0(win) /= lbs)) call f_err_throw(&
+         'ERROR (f_subptr2): expected shape does not match, '//&
+         trim(yaml_toa(get_lbnd2_i0(win)))//' vs. '//trim(yaml_toa(lbs)),&
+         ERR_MALLOC_INTERNAL)
+
+    if (f_loc(win(lbs(1),lbs(2))) /= f_loc(ptr(from)) .or. &
+         f_loc(win(ubs(1),ubs(2))) /= f_loc(ptr(from+size-1))) call f_err_throw(&
+         'ERROR (f_subptr2): addresses do not match, the allocating system has performed a copy',&
+         ERR_MALLOC_INTERNAL)
+
+  end function f_subptr2_i1
 
 
   !> This routine identifies for each of the routines the most time consuming parts and print it in the logfile
