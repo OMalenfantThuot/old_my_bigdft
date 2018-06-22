@@ -114,9 +114,6 @@ contains
 !!$    oxyz_src=true_origin(llr_src%mesh,llr_src)
 !!$    oxyz_dest=true_origin(llr_dest%mesh,llr_dest)
     !mesh coarse vs mesh fine for free BC
-    !not sure if the correct thing to be passed is true_origin
-    !perhaps the shift might be inferred from the value of the
-    !offset of the box iterator of the localization regions
     oxyz_src=true_origin(mesh_glr_src,llr_src)
     oxyz_dest=true_origin(mesh_glr_dest,llr_dest)
 
@@ -397,7 +394,7 @@ contains
     real(wp), dimension(:), allocatable :: ww,wwold
     real(wp), dimension(:,:,:,:,:,:), allocatable :: psig
     real(wp), dimension(:,:,:), allocatable :: psir
-    real(wp), dimension(:,:,:), allocatable :: psifscfold, psifscf !no reason for pointers
+    real(wp), dimension(:,:,:), pointer :: psifscfold, psifscf !no reason for pointers
     integer :: i,j,k
     ! isf version
     type(workarr_sumrho) :: w
@@ -419,7 +416,8 @@ contains
        call ext_buffers_coarse(per(2),nb(2))
        call ext_buffers_coarse(per(3),nb(3))
 
-       psifscfold = f_malloc(-nb.to.2*n_old+1+nb,id='psifscfold')
+       psifscf = f_malloc_ptr(-nb.to.2*n+1+nb,id='psifscf')
+       psifscfold = f_malloc_ptr(-nb.to.2*n_old+1+nb,id='psifscfold')
 
        wwold = f_malloc((2*n_old(1)+2+2*nb(1))*(2*n_old(2)+2+2*nb(2))*(2*n_old(3)+2+2*nb(3)),id='wwold')
 
@@ -463,7 +461,6 @@ contains
     call rototranslations_shifts(frag_trans,src_glr_mesh,dest_glr_mesh,llr_old,llr,&
          centre_src,centre_dest,da)
     if (.not. present(psirold)) then
-       psifscf = f_malloc(-nb.to.2*n+1+nb,id='psifscf')
        call apply_rototranslation(frag_trans,.true.,&
             llr_old%mesh_fine,llr%mesh_fine,& 
             centre_src,centre_dest,da,&
@@ -501,7 +498,7 @@ contains
 
     !  print*, 'norm of psifscf ',dnrm2((2*n(1)+2+2*nb(1))*(2*n(2)+2+2*nb(1))*(2*n(3)+2+2*nb(1)),psifscf,1)
     if (.not. present(psirold)) then
-       call f_free(psifscfold)
+       call f_free_ptr(psifscfold)
        psig = f_malloc((/ 0.to.n(1), 1.to.2, 0.to.n(2), 1.to.2, 0.to.n(3), 1.to.2 /),id='psig')
        ww = f_malloc((2*n(1)+2+2*nb(1))*(2*n(2)+2+2*nb(2))*(2*n(3)+2+2*nb(3)),id='ww')
 
@@ -513,7 +510,7 @@ contains
           call analyse_per(n(1),n(2),n(3),ww,psifscf,psig)
        end if
 
-       call f_free(psifscf)
+       call f_free_ptr(psifscf)
 
 
        if (present(tag)) then
@@ -974,8 +971,8 @@ contains
 
     !print *,'3d'
     call f_routine(id='field_rototranslation3D')
-    work =f_malloc0(ndims_new(1)*(maxval(ndims_old))**2,id='work')
-    work2=f_malloc0(ndims_new(1)*ndims_new(2)*maxval(ndims_old),id='work2')
+    work =f_malloc(ndims_new(1)*(maxval(ndims_old))**2,id='work')
+    work2=f_malloc(ndims_new(1)*ndims_new(2)*maxval(ndims_old),id='work2')
 
     m_isf=nrange_phi/2
     !shf=f_malloc(-m_isf .to. m_isf,id='shf')

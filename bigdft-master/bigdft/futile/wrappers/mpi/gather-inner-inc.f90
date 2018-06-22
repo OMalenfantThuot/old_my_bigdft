@@ -11,7 +11,12 @@
   else
      iroot=0
   end if
-  mpi_comm=fmpi_comm(comm)
+  if (present(comm)) then
+     mpi_comm=comm
+  else
+     mpi_comm=MPI_COMM_WORLD !or bigdft_mpi%mpi_comm?
+  end if
+
   !verify the size of the receive buffer
   ntasks=mpisize(mpi_comm)
   if (ntotrecv*kind(recvbuf) < ntot*ntasks*kind(sendbuf)) then

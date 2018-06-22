@@ -1420,12 +1420,14 @@ module io
 
     subroutine io_read_descr_linear(unitwf, formatted, iorb_old, eval, n_old1, n_old2, n_old3, &
            & ns_old1, ns_old2, ns_old3, hgrids_old, lstat, error, onwhichatom, locrad, locregCenter, &
-           & confPotOrder, confPotprefac, wfd,&
-!!$           & nvctr_c, nvctr_f, nseg_c, nseg_f, &
-!!$           & keygloc, keyglob, keyvloc, keyvglob, &
+           & confPotOrder, confPotprefac, &
+           & nvctr_c, nvctr_f, nseg_c, nseg_f, &
+           & keygloc, keyglob, keyvloc, keyvglob, &
            & nat, rxyz_old)
         use module_base
-        use compression
+        use module_types
+        !use internal_io
+        use yaml_output
         implicit none
     
         integer, intent(in) :: unitwf
@@ -1442,10 +1444,9 @@ module io
         integer, intent(out) :: confPotOrder
         real(gp), intent(out) :: confPotprefac
         ! Optional arguments
-        type(wavefunctions_descriptors), intent(out), optional :: wfd
-!!$        integer,intent(out),optional :: nseg_c, nvctr_c, nseg_f, nvctr_f
-!!$        integer,dimension(:,:),pointer,intent(out),optional :: keygloc, keyglob
-!!$        integer,dimension(:),pointer,intent(out),optional :: keyvloc, keyvglob
+        integer,intent(out),optional :: nseg_c, nvctr_c, nseg_f, nvctr_f
+        integer,dimension(:,:),pointer,intent(out),optional :: keygloc, keyglob
+        integer,dimension(:),pointer,intent(out),optional :: keyvloc, keyvglob
         integer,intent(in),optional :: nat
         real(gp),dimension(:,:),intent(out),optional :: rxyz_old
         integer :: nseg_c_, nvctr_c_, nseg_f_, nvctr_f_ , iseg
@@ -1489,25 +1490,22 @@ module io
                  if (i_stat /= 0) return
               enddo
            end if
-           !if (present(nvctr_c) .and. present(nvctr_f)) then
-           if (present(wfd)) then
-              read(unitwf,*,iostat=i_stat) wfd%nvctr_c, wfd%nvctr_f
+           if (present(nvctr_c) .and. present(nvctr_f)) then
+              read(unitwf,*,iostat=i_stat) nvctr_c, nvctr_f
               if (i_stat /= 0) return
            else
               read(unitwf,*,iostat=i_stat) nvctr_c_, nvctr_f_
            end if
-           !if (present(nseg_c) .and. present(nseg_f) .and. &
-           !    present(keygloc) .and. present(keyglob) .and. &
-           !    present(keyvloc) .and. present(keyvglob)) then
-           if (present(wfd)) then
-              read(unitwf,*,iostat=i_stat) wfd%nseg_c, wfd%nseg_f
-              call allocate_wfd(wfd)
-!!$              keygloc = f_malloc_ptr((/2,nseg_c+nseg_f/),id='keygloc')
-!!$              keyglob = f_malloc_ptr((/2,nseg_c+nseg_f/),id='keyglob')
-!!$              keyvloc = f_malloc_ptr(nseg_c+nseg_f,id='keyvloc')
-!!$              keyvglob = f_malloc_ptr(nseg_c+nseg_f,id='keyvglob')
-              do iseg=1,wfd%nseg_c+wfd%nseg_f
-                 read(unitwf,*,iostat=i_stat) wfd%keygloc(1:2,iseg), wfd%keyglob(1:2,iseg), wfd%keyvloc(iseg), wfd%keyvglob(iseg)
+           if (present(nseg_c) .and. present(nseg_f) .and. &
+               present(keygloc) .and. present(keyglob) .and. &
+               present(keyvloc) .and. present(keyvglob)) then
+              read(unitwf,*,iostat=i_stat) nseg_c, nseg_f
+              keygloc = f_malloc_ptr((/2,nseg_c+nseg_f/),id='keygloc')
+              keyglob = f_malloc_ptr((/2,nseg_c+nseg_f/),id='keyglob')
+              keyvloc = f_malloc_ptr(nseg_c+nseg_f,id='keyvloc')
+              keyvglob = f_malloc_ptr(nseg_c+nseg_f,id='keyvglob')
+              do iseg=1,nseg_c+nseg_f
+                 read(unitwf,*,iostat=i_stat) keygloc(1:2,iseg), keyglob(1:2,iseg), keyvloc(iseg), keyvglob(iseg)
                  if (i_stat /= 0) return
               end do
            else
@@ -1548,31 +1546,28 @@ module io
                  if (i_stat /= 0) return
               enddo
            end if
-           !if (present(nvctr_c) .and. present(nvctr_f)) then
-           if (present(wfd)) then
-              read(unitwf,iostat=i_stat) wfd%nvctr_c, wfd%nvctr_f
+           if (present(nvctr_c) .and. present(nvctr_f)) then
+              read(unitwf,iostat=i_stat) nvctr_c, nvctr_f
               if (i_stat /= 0) return
            else
               read(unitwf,iostat=i_stat) nvctr_c_, nvctr_f_
            end if
-           if (present(wfd)) then
-           !if (present(nseg_c) .and. present(nseg_f) .and. &
-           !    present(keygloc) .and. present(keyglob) .and. &
-           !    present(keyvloc) .and. present(keyvglob)) then
-              read(unitwf,iostat=i_stat) wfd%nseg_c, wfd%nseg_f
-              call allocate_wfd(wfd)
-              !keygloc = f_malloc_ptr((/2,nseg_c+nseg_f/),id='keygloc')
-              !keyglob = f_malloc_ptr((/2,nseg_c+nseg_f/),id='keyglob')
-              !keyvloc = f_malloc_ptr(nseg_c+nseg_f,id='keyvloc')
-              !keyvglob = f_malloc_ptr(nseg_c+nseg_f,id='keyvglob')
-              do iseg=1,wfd%nseg_c+wfd%nseg_f
-                 read(unitwf,iostat=i_stat) wfd%keygloc(1:2,iseg), wfd%keyglob(1:2,iseg), wfd%keyvloc(iseg), wfd%keyvglob(iseg)
+           if (present(nseg_c) .and. present(nseg_f) .and. &
+               present(keygloc) .and. present(keyglob) .and. &
+               present(keyvloc) .and. present(keyvglob)) then
+              read(unitwf,*,iostat=i_stat) nseg_c, nseg_f
+              keygloc = f_malloc_ptr((/2,nseg_c+nseg_f/),id='keygloc')
+              keyglob = f_malloc_ptr((/2,nseg_c+nseg_f/),id='keyglob')
+              keyvloc = f_malloc_ptr(nseg_c+nseg_f,id='keyvloc')
+              keyvglob = f_malloc_ptr(nseg_c+nseg_f,id='keyvglob')
+              do iseg=1,nseg_c+nseg_f
+                 read(unitwf,*,iostat=i_stat) keygloc(1:2,iseg), keyglob(1:2,iseg), keyvloc(iseg), keyvglob(iseg)
                  if (i_stat /= 0) return
               end do
            else
-              read(unitwf,iostat=i_stat) nseg_c_, nseg_f_
+              read(unitwf,*,iostat=i_stat) nseg_c_, nseg_f_
               do iseg=1,nseg_c_+nseg_f_
-                 read(unitwf,iostat=i_stat) idummy(1:6)
+                 read(unitwf,*,iostat=i_stat) idummy(1:6)
                  if (i_stat /= 0) return
               end do
            end if
@@ -2633,7 +2628,7 @@ module io
          if (energs%evsic /= 0.0_gp)&
               call yaml_map('EvSIC',energs%evsic,fmt='(1pe18.11)')
          if (energs%epaw /= 0.0_gp)&
-              call yaml_map('Epaw',energs%epawdc,fmt='(1pe18.11)')
+              call yaml_map('Epaw',energs%epaw,fmt='(1pe18.11)')
          if (len(trim(comment)) > 0) then
             if (energs%eion /= 0.0_gp)&
                  call yaml_map('Eion',energs%eion,fmt='(1pe18.11)')
@@ -2799,30 +2794,9 @@ module io
    
    END SUBROUTINE writeonewave
 
-   subroutine writerhoij(unitf, lbin, nat, pawrhoij)
-     use m_pawrhoij
-     implicit none
-     integer, intent(in) :: unitf, nat
-     logical, intent(in) :: lbin
-     type(pawrhoij_type), dimension(nat), intent(in) :: pawrhoij
-
-     integer :: i
-
-     if (lbin) then
-        do i = 1, nat
-           write(unitf) i, size(pawrhoij(i)%rhoijp, 1), size(pawrhoij(i)%rhoijp, 2)
-           write(unitf) pawrhoij(i)%rhoijp
-        end do
-     else
-        do i = 1, nat
-           write(unitf, *) i, size(pawrhoij(i)%rhoijp, 1), size(pawrhoij(i)%rhoijp, 2)
-           write(unitf, "(4(1x,e17.10))") pawrhoij(i)%rhoijp
-        end do
-     end if
-   END SUBROUTINE writerhoij
 
    !> Write all my wavefunctions in files by calling writeonewave
-   subroutine writemywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz,wfd,psi,iorb_shift,paw)
+   subroutine writemywaves(iproc,filename,iformat,orbs,n1,n2,n3,hx,hy,hz,at,rxyz,wfd,psi,iorb_shift)
      use module_types
      use module_base
      use yaml_output
@@ -2839,7 +2813,6 @@ module io
      real(wp), dimension(wfd%nvctr_c+7*wfd%nvctr_f,orbs%nspinor,orbs%norbp), intent(in) :: psi
      character(len=*), intent(in) :: filename
      integer,intent(in),optional :: iorb_shift
-     type(paw_objects), intent(in), optional :: paw
      !Local variables
      integer :: ncount1,ncount_rate,ncount_max,iorb,ncount2,iorb_out,ispinor,unitwf,iorb_shift_
      real(kind=4) :: tr0,tr1
@@ -2875,18 +2848,6 @@ module io
               call f_close(unitwf)
            end do
         enddo
-
-        ! Additional PAW data.
-        if (iproc == 0 .and. present(paw)) then
-           if (iformat == WF_FORMAT_BINARY) then
-              call f_open_file(unitwf, file = filename // "-rhoij.bin", binary = .true.)
-           else
-              call f_open_file(unitwf, file = filename // "-rhoij", binary = .false.)
-           end if
-           if (associated(paw%pawrhoij)) &
-                call writerhoij(unitwf, (iformat == WF_FORMAT_BINARY), at%astruct%nat, paw%pawrhoij)
-           call f_close(unitwf)
-        end if
    
         call cpu_time(tr1)
         call system_clock(ncount2,ncount_rate,ncount_max)

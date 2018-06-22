@@ -19,7 +19,6 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../'))
-sys.path.insert(0, os.path.abspath('../notebooks'))
 
 # -- General configuration ------------------------------------------------
 
@@ -38,8 +37,7 @@ extensions = ['sphinx.ext.autodoc',
     'sphinx.ext.mathjax',
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
-    'sphinx.ext.githubpages',
-    'nbsphinx']
+    'sphinx.ext.githubpages']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['sphinx_templates']
@@ -201,5 +199,5 @@ if on_rtd:
         def __getattr__(cls, name):
             return MagicMock()
 
-    MOCK_MODULES = ['yaml','gi.repository']
+    MOCK_MODULES = ['yaml']
     sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)

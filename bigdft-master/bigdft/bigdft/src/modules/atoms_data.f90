@@ -26,7 +26,6 @@ module module_atoms
   use dictionaries, only: dictionary
   use f_trees, only: f_tree
   use f_arrays
-  use pspiof_m, only: pspiof_pspdata_t
   implicit none
 
   private
@@ -102,7 +101,6 @@ module module_atoms
      type(pawtab_type), dimension(:), pointer :: pawtab  !< PAW objects for something.
      type(pawang_type) :: pawang                         !< PAW angular mesh definition.
      real(gp), dimension(:), pointer :: epsatm !< PAW pseudoatom energy for each type of atom
-     type(pspiof_pspdata_t), dimension(:), pointer :: pspio !< PSPIO data objects.
 
      !> for abscalc with pawpatch
      integer, dimension(:), pointer ::  paw_NofL, paw_l, paw_nofchannels
@@ -141,7 +139,7 @@ module module_atoms
   public :: astruct_set_from_dict
   public :: astruct_file_merge_to_dict,atoms_file_merge_to_dict
   public :: psp_dict_analyse, nlcc_set_from_dict,atoms_gamma_from_dict
-  public :: astruct_constraints,astruct_set,atomic_charge_density,atomic_cores_charge_density
+  public :: astruct_constraints,astruct_set,atomic_charge_density
 
 
 contains
@@ -355,7 +353,6 @@ contains
     nullify(at%pawrad)
     nullify(at%pawtab)
     nullify(at%epsatm)
-    nullify(at%pspio)
     !call pawang_nullify(at%pawang) !not needed in fact
   end subroutine nullify_atoms_data
 
@@ -428,8 +425,6 @@ contains
     use m_pawtab, only: pawtab_free
     use m_pawrad, only: pawrad_free
     use m_pawang, only: pawang_free
-    use pspiof_m, only: pspiof_pspdata_free
-    use public_enums, only: PSPCODE_PSPIO
     implicit none
     type(atoms_data), intent(inout) :: atoms
     !local variables
@@ -441,15 +436,6 @@ contains
 
     ! Deallocate atomic structure
     call deallocate_atomic_structure(atoms%astruct)
-
-    ! Free PSPIO data.
-    if (associated(atoms%pspio)) then
-       do ityp = 1, size(atoms%pspio)
-          if (atoms%npspcode(ityp) == PSPCODE_PSPIO) &
-               & call pspiof_pspdata_free(atoms%pspio(ityp))
-       end do
-       deallocate(atoms%pspio)
-    end if
 
     ! Deallocations related to pseudos.
     call f_free_ptr(atoms%nzatom)
@@ -501,7 +487,7 @@ contains
     if (associated(atoms%epsatm)) then
        call f_free_ptr(atoms%epsatm)
     end if
-  END SUBROUTINE deallocate_atoms_data
+    END SUBROUTINE deallocate_atoms_data
 
     !> Start the iterator of an astruct_neighbours structure.
     !  Only one iterator is possible at a time.
@@ -536,65 +522,29 @@ contains
 
 
     !> Determine the gaussian structure related to the given atom
-    pure subroutine atomic_charge_density(g,at,atit)
+    subroutine atomic_charge_density(g,at,atit)
       use gaussians
+      use numerics, only: twopi
       implicit none
       type(atoms_data), intent(in) :: at
       type(atoms_iterator), intent(in) :: atit
       type(gaussian_real_space), intent(out) :: g
       !local variables
       integer :: mp_isf
-
-      mp_isf=at%mp_isf
-      if (.not. at%multipole_preserving) mp_isf=0
-
-      call atomic_gaussian(g,&
-           charge=real(at%nelpsp(atit%ityp),gp),&
-           sigma=at%psppar(0,0,atit%ityp),mp_isf=mp_isf)
-
-    end subroutine atomic_charge_density
-
-    !> Determine the gaussian structure related to the given atom
-    pure subroutine atomic_gaussian(g,charge,sigma,mp_isf)
-      use gaussians
-      use numerics, only: twopi
-      implicit none
-      integer, intent(in) :: mp_isf
-      real(gp), intent(in) :: charge,sigma
-      type(gaussian_real_space), intent(out) :: g
-      !local variables
       real(gp) :: rloc
-      real(gp), dimension(1) :: charge_
+      real(gp), dimension(1) :: charge
       integer, dimension(1) :: zero1
       integer, dimension(3) :: zeros
 
-      charge_(1)=charge/(twopi*sqrt(twopi)*sigma**3)
+      rloc=at%psppar(0,0,atit%ityp)
+      charge(1)=real(at%nelpsp(atit%ityp),gp)/(twopi*sqrt(twopi)*rloc**3)
       zeros=0
       zero1=0
-      call gaussian_real_space_set(g,sigma,1,charge_,zeros,zero1,mp_isf)
-
-    end subroutine atomic_gaussian
-
-    !> Determine the gaussian structure related to the core density for
-    !multipole
-    pure subroutine atomic_cores_charge_density(g,at,mpli)
-      use gaussians
-      use numerics, only: twopi
-      use multipole_base, only: multipole_set
-      implicit none
-      type(atoms_data), intent(in) :: at
-      type(multipole_set), intent(in) :: mpli
-      type(gaussian_real_space), intent(out) :: g
-      !local variables
-      integer :: mp_isf
-
       mp_isf=at%mp_isf
       if (.not. at%multipole_preserving) mp_isf=0
+      call gaussian_real_space_set(g,rloc,1,charge,zeros,zero1,mp_isf)
 
-      call atomic_gaussian(g,&
-           charge=real(mpli%nzion,gp),sigma=mpli%sigma(0),mp_isf=mp_isf)
-
-    end subroutine atomic_cores_charge_density
+    end subroutine atomic_charge_density
 
 !!!    subroutine local_psp_terms(g,at,atit)
 !!!      implicit none
@@ -1173,7 +1123,6 @@ contains
       use dictionaries
       use yaml_strings, only: f_char_ptr
       use yaml_output
-      use f_utils
       implicit none
       type(atomic_structure), intent(out) :: astruct
       character(len = *), intent(in) :: obfile
@@ -1204,9 +1153,6 @@ contains
       call yaml_map('Supported output formats',outdict)
       call dict_free(indict,outdict)
 
-      ! giuseppe line
-      !call analyse_posinp_dict(dict)
-
       call astruct_set_from_dict(dict, astruct)
       call dict_free(dict)
     end subroutine set_astruct_from_openbabel
@@ -1235,25 +1181,14 @@ contains
     end subroutine dump_dict_with_openbabel
 
     subroutine analyse_posinp_dict(dict)
-      use module_base
       use dictionaries
-      use f_utils
-      use yaml_output
-      use yaml_strings, only: yaml_toa
-      use numerics, only: pi
       implicit none
       type(dictionary), pointer :: dict
       !local variables
       real(gp) :: alpha,beta,gamma
-      real(gp), dimension(3) :: cell,rxyz_at,ang,angrad,vect_norm
+      real(gp), dimension(3) :: cell,rxyz_at
       real(gp), dimension(3,3) :: abc
       type(dictionary), pointer :: dict_atoms,iter
-      real(gp), parameter :: ths1 = 1.e-15_gp
-      real(gp), parameter :: ths2 = 1.e-13_gp
-      integer :: i,i1,i2
-      logical :: boundary
-
-      call yaml_map('input posinp',dict)
 
       !take the default vfalues if the key does not exists in the dictionary
       alpha=90.0_gp
@@ -1266,71 +1201,22 @@ contains
       cell=1.0_gp
       if ('cell' .in. dict) cell=dict // 'cell'
 
-      call f_zero(abc)
+      !call f_zero(abc)
       if ('abc' .in. dict) then
-!!$         abc = dict // 'abc'
+         !abc = dict//'abc'
       else
          abc(1,1)=1.0_gp
          abc(2,2)=1.0_gp
          abc(3,3)=1.0_gp
       end if
 
-      call yaml_mapping_open('Some checks of consistency')
-      call yaml_map('cell',cell)
-      call yaml_map('abc',abc)
-
       !now cross-check the values to see if they are consistent and clean them to roundoff
 
-
-
       !clean the angles to 90 up to tolerance    
-      call yaml_map('alpha before cleaning',alpha)
-      call yaml_map('beta before cleaning',beta)
-      call yaml_map('gamma before cleaning',gamma)
-      do i=1,3
-         if (abs(alpha-90.0_gp).lt.ths1) alpha = 90.0_gp
-         if (abs(beta-90.0_gp).lt.ths1) alpha = 90.0_gp
-         if (abs(gamma-90.0_gp).lt.ths1) alpha = 90.0_gp
-      end do
-      call yaml_map('alpha after cleaning',alpha)
-      call yaml_map('beta after cleaning',beta)
-      call yaml_map('gamma after cleaning',gamma)
 
       !construct reduced cell vectors (if they do not exist)
-      do i=1,3
-         vect_norm(i) = sqrt(abc(1,i)**2 + abc(2,i)**2 + abc(3,i)**2)
-         if (abs(vect_norm(i) - 1.0_gp) >= ths2) then
-            if (abs(vect_norm(i) - cell(i)) >= ths2) call f_err_throw(err_msg=&
-                "Inconsistency between the primitive vector norm and the cell lenght, direction = "// &
-                 & trim(yaml_toa(i))//" ",err_id=BIGDFT_INPUT_FILE_ERROR)
-         end if
-      end do
-      call yaml_map('norm vector a', vect_norm(1))
-      call yaml_map('norm vector b', vect_norm(2))
-      call yaml_map('norm vector c', vect_norm(3))
 
       !verify that the cell vectors are in agreement with angles
-      do i=1,3
-         i1=mod(i,3)+1
-         i2=mod(i+1,3)+1
-         ang(i) = vect_norm(i1)*vect_norm(i2)*dot_product(abc(:,i1),abc(:,i2))
-      end do
-      angrad(1) = alpha/180.0_gp*pi
-      angrad(2) = beta/180.0_gp*pi
-      angrad(3) = gamma/180.0_gp*pi
-      call yaml_map('cos(alpha)', ang(1))
-      call yaml_map('cos(beta)' , ang(2))
-      call yaml_map('cos(gamma)', ang(3))
-      call yaml_map('cos(alpha) input', cos(angrad(1)))
-      call yaml_map('cos(beta) input' , cos(angrad(2)))
-      call yaml_map('cos(gamma) input', cos(angrad(3)))
-     
-      if (abs(ang(1) - cos(angrad(1))) >= ths2) call f_err_throw(err_msg=&
-          "Inconsistency between alpha and the primitive cell vectors b and c",err_id=BIGDFT_INPUT_FILE_ERROR)
-      if (abs(ang(2) - cos(angrad(2))) >= ths2) call f_err_throw(err_msg=&
-          "Inconsistency between beta and the primitive cell vectors a and c",err_id=BIGDFT_INPUT_FILE_ERROR)
-      if (abs(ang(3) - cos(angrad(3))) >= ths2) call f_err_throw(err_msg=&
-          "Inconsistency between gamma and the primitive cell vectors a and b",err_id=BIGDFT_INPUT_FILE_ERROR)
 
       !put clean values in the dictionary
 
@@ -1342,20 +1228,11 @@ contains
          call astruct_at_from_dict(iter,rxyz=rxyz_at)
          !for all the atoms which are very close to the border of the region verify if there is a atom on the other side
          !if so remove the atoms
-         call yaml_map('rxyz_at', rxyz_at)
-         boundary=.false.
-         do i=1,3
-            if (abs(mod(rxyz_at(i),cell(i))) <= ths2) boundary = .true.
-         end do
-         if (boundary) then
-         end if
         
       end do
 
       !then put the correct units (for example from openbabel put the angstroem keyword)
       !if there is only cell and angles we should for instance put the 'reduced' keyword somewhere
-
-      call yaml_mapping_close()
 
     end subroutine analyse_posinp_dict
 
@@ -1756,7 +1633,7 @@ contains
       use dictionaries
       implicit none
       integer, intent(in) :: nspin
-      integer, intent(in) :: mp_isf      !< Interpolating scaling function order for multipole preserving
+      integer, intent(in) :: mp_isf               !< Interpolating scaling function order for multipole preserving
       integer, intent(in) :: ixc         !< XC functional Id
       logical, intent(in) :: multipole_preserving !< Preserve multipole for ionic charge (integrated isf)
       real(gp), intent(in) :: alpha_hartree_fock !< exact exchange contribution
@@ -2154,7 +2031,7 @@ contains
               atoms%nzatom(ityp), atoms%nelpsp(ityp), atoms%npspcode(ityp), &
               atoms%ixcpsp(ityp), atoms%iradii_source(ityp),psppar,&
               radii_cf,pawpatch,&
-              atoms%pawrad,atoms%pawtab,atoms%epsatm,atoms%pspio)
+              atoms%pawrad,atoms%pawtab,atoms%epsatm)
          atoms%radii_cf(ityp,1:3) = radii_cf(1:3)
          atoms%psppar(0:4,0:6,ityp) = psppar(0:4,0:6)
       end do

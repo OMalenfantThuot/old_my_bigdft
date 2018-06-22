@@ -606,7 +606,7 @@ subroutine update_locreg(iproc, nproc, nlr, locrad, locrad_kernel, locrad_mult, 
   type(orbitals_data), intent(in) :: orbs_KS, orbs
   real(kind=8),dimension(3,nlr), intent(in) :: locregCenter
   type(locreg_descriptors), intent(in) :: glr_tmp
-  type(local_zone_descriptors), intent(inout) :: lzd !this is a intent(out)
+  type(local_zone_descriptors), intent(inout) :: lzd
   type(p2pComms), intent(inout) :: lbcomgp
   type(foe_data), intent(inout),optional :: lfoe
   type(comms_linear), intent(inout) :: lbcollcom
@@ -1753,7 +1753,7 @@ subroutine set_confdatarr(input, at, lorbs, onwhichatom, potential_prefac, locra
           tt = max(tt,abs(confdatarr(iorb)%damping-confdatarr(jorb)%damping))
       end do
   end do
-  damping_diff = fmpi_maxdiff(1, tt)
+  damping_diff = mpimaxdiff(1, tt)
 
   if (bigdft_mpi%iproc==0) call yaml_comment('Set the confinement prefactors',hfill='~')
   if (bigdft_mpi%iproc==0 .and. add_sequence) call yaml_sequence(advance='no')

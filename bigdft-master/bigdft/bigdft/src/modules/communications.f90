@@ -24,6 +24,7 @@ module communications
   public :: transpose_unswitch_psirt
   public :: start_onesided_communication
   public :: synchronize_onesided_communication
+  public :: communicate_locreg_descriptors_basics
   public :: communicate_locreg_descriptors_keys
   public :: transpose_v
   public :: untranspose_v
@@ -242,7 +243,7 @@ module communications
           transpose_action == TRANSPOSE_GATHER) then
 
           if (nproc>1) then
-              call fmpi_wait(wt%request)
+              call mpiwait(wt%request)
           end if
 
           ist=1
@@ -499,7 +500,7 @@ module communications
           transpose_action == TRANSPOSE_GATHER) then
 
           if (nproc>1) then
-              call fmpi_wait(wt%request)
+              call mpiwait(wt%request)
           end if
 
           ist=1
@@ -1358,7 +1359,10 @@ module communications
 
 
     !> Locreg communication
-    subroutine communicate_locreg_descriptors_basics_deprecated(iproc, nproc, nlr, rootarr, orbs, llr)
+    !! LG: which is the sense of this routine?
+    !! if all processors should have these data we should make all procs 
+    !! calculate them, the calculation should not be too heavy.
+    subroutine communicate_locreg_descriptors_basics(iproc, nproc, nlr, rootarr, orbs, llr)
       use module_base
       use module_types, only: orbitals_data
       use locregs, only: locreg_descriptors
@@ -1382,6 +1386,8 @@ module communications
 
       call f_routine(id=subname)
     
+!!$      allocate(worksend_char(orbs%norbp), stat=istat)
+!!$      call memocc(istat, worksend_char, 'worksend_char', subname)
       worksend_char= f_malloc_str(len(worksend_char),orbs%norbp,&
            id='worksend_char')
       worksend_log = f_malloc(orbs%norbp,id='worksend_log')
@@ -1390,6 +1396,8 @@ module communications
     
       workrecv_char= f_malloc_str(len(workrecv_char),orbs%norb,&
            id='workrecv_char')
+!!$      allocate(workrecv_char(orbs%norb), stat=istat)
+!!$      call memocc(istat, workrecv_char, 'workrecv_char', subname)
       workrecv_log = f_malloc(orbs%norb,id='workrecv_log')
       workrecv_int = f_malloc((/ 27, orbs%norb /),id='workrecv_int')
       workrecv_dbl = f_malloc((/ 6, orbs%norb /),id='workrecv_dbl')
@@ -1447,6 +1455,8 @@ module communications
       end do
       call mpi_allgatherv(worksend_int, 27*orbs%norbp, mpi_integer, workrecv_int, norb_par, &
            27*orbs%isorb_par, mpi_integer, bigdft_mpi%mpi_comm, ierr)
+!!$      call mpiallgather(sendbuf=worksend_int,sendcount=27*orbs%norbp,recvbuf=workrecv_int,recvcounts=27*orbs%norb_par(:,0), &
+!!$           displs=27*orbs%isorb_par, comm=bigdft_mpi%mpi_comm)
       do jproc=0,nproc-1
           norb_par(jproc) = 6*orbs%norb_par(jproc,0)
       end do
@@ -1537,11 +1547,18 @@ module communications
       !!    llr(iilr)%d%n3i=workrecv_int(12,ilr)
       !!end do
     
+    
+!!$      iall=-product(shape(worksend_char))*kind(worksend_char)
+!!$      deallocate(worksend_char,stat=istat)
+!!$      call memocc(istat, iall, 'worksend_char', subname)
       call f_free_str(len(worksend_char),worksend_char)
       call f_free(worksend_log)
       !!call f_free(worksend_int)
       call f_free(worksend_dbl)
 
+!!$      iall=-product(shape(workrecv_char))*kind(workrecv_char)
+!!$      deallocate(workrecv_char,stat=istat)
+!!$      call memocc(istat, iall, 'workrecv_char', subname)
       call f_free_str(len(workrecv_char),workrecv_char)
       call f_free(workrecv_log)
       !!call f_free(workrecv_int)
@@ -1549,9 +1566,10 @@ module communications
 
       call f_release_routine()
     
-    end subroutine communicate_locreg_descriptors_basics_deprecated
+    end subroutine communicate_locreg_descriptors_basics
     
-    subroutine communicate_locreg_descriptors_keys(iproc, nproc, nlr, glr, llr, orbs, rootarr, onwhichmpi, llr_on_all_mpi)
+    
+    subroutine communicate_locreg_descriptors_keys(iproc, nproc, nlr, glr, llr, orbs, rootarr, onwhichmpi)
        use dynamic_memory
        use dictionaries
        use wrapper_mpi
@@ -1570,7 +1588,6 @@ module communications
        type(orbitals_data),intent(in) :: orbs
        integer,dimension(nlr),intent(in) :: rootarr
        integer,dimension(orbs%norb),intent(in) :: onwhichmpi
-       integer, intent(in) :: llr_on_all_mpi
     
        ! Local variables
        integer :: ierr, jorb, ilr, jlr, root, max_sim_comms, norb_max
@@ -1616,7 +1633,7 @@ module communications
        ! Determine which locregs process iproc should get.
        ncover = 0
        !$omp parallel default(none) &
-       !$omp shared(ncover, nlr, rootarr, covered, orbs, glr, llr, iproc, llr_on_all_mpi) &
+       !$omp shared(ncover, nlr, rootarr, covered, orbs, glr, llr, iproc) &
        !$omp private(ilr, root, jorb, jjorb, jlr, isoverlap)
        !$omp do reduction(+: ncover)
        do ilr=1,nlr
@@ -1626,7 +1643,7 @@ module communications
                jjorb=orbs%isorb+jorb
                jlr=orbs%inwhichlocreg(jjorb)
                ! don't communicate to ourselves, or if we've already sent this locreg
-               if (iproc == root .or. covered(ilr) .or. ilr==llr_on_all_mpi) cycle
+               if (iproc == root .or. covered(ilr)) cycle
                call check_overlap_cubic_periodic(glr,llr(ilr),llr(jlr),isoverlap)
                if (isoverlap) then         
                    covered(ilr)=.true.
@@ -1638,7 +1655,7 @@ module communications
                jjorb=orbs%isorbu+jorb
                jlr=orbs%inwhichlocreg(jjorb)
                ! don't communicate to ourselves, or if we've already sent this locreg
-               if (iproc == root .or. covered(ilr) .or. ilr==llr_on_all_mpi) cycle
+               if (iproc == root .or. covered(ilr)) cycle
                call check_overlap_cubic_periodic(glr,llr(ilr),llr(jlr),isoverlap)
                if (isoverlap) then         
                    covered(ilr)=.true.

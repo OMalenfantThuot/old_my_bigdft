@@ -104,7 +104,7 @@
 !!$
 !!$    call yaml_map('Ndimp',[ndimp,isdim,iproc])
 !!$
-    call fmpi_barrier()
+    call mpibarrier()
     call yaml_flush_document()
 !!$
 

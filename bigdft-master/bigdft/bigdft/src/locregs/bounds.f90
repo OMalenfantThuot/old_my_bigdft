@@ -1,6 +1,5 @@
 module bounds
   use compression, only: wavefunctions_descriptors
-  use f_precisions
   implicit none
 
   private
@@ -51,7 +50,7 @@ module bounds
   public :: ext_buffers,ext_buffers_coarse
   public :: make_bounds_per
   public :: make_all_ib_per
-  public :: isf_box_buffers!geocode_buffers
+  public :: geocode_buffers
   public :: locreg_mesh_origin,locreg_mesh_shape
   public :: check_whether_bounds_overlap
   public :: get_extent_of_overlap
@@ -266,7 +265,7 @@ module bounds
     function check_whether_bounds_overlap_int(i1, i2, j1, j2) result(overlap)
       implicit none
       ! Calling arguments
-      integer(f_integer),intent(in) :: i1, i2, j1, j2
+      integer(kind=4),intent(in) :: i1, i2, j1, j2
       logical :: overlap
       ! Local variables
       integer :: periodic
@@ -300,7 +299,7 @@ module bounds
     function check_whether_bounds_overlap_long(i1, i2, j1, j2) result(overlap)
       implicit none
       ! Calling arguments
-      integer(f_long),intent(in) :: i1, i2, j1, j2
+      integer(kind=8),intent(in) :: i1, i2, j1, j2
       logical :: overlap
       ! Local variables
       integer :: periodic
@@ -1122,7 +1121,7 @@ module bounds
       enddo
     END SUBROUTINE squares
 
-    pure elemental subroutine ext_buffers(periodic,nl,nr)
+    pure subroutine ext_buffers(periodic,nl,nr)
       implicit none
       logical, intent(in) :: periodic
       integer, intent(out) :: nl,nr
@@ -1136,7 +1135,7 @@ module bounds
       end if
     END SUBROUTINE ext_buffers
 
-    pure elemental subroutine ext_buffers_coarse(periodic,nb)
+    pure subroutine ext_buffers_coarse(periodic,nb)
       implicit none
       logical, intent(in) :: periodic
       integer, intent(out) :: nb
@@ -1146,6 +1145,8 @@ module bounds
          nb=7
       end if
     END SUBROUTINE ext_buffers_coarse
+
+
 
     !> Define the bounds of wavefunctions for periodic systems
     subroutine make_bounds_per(n1,n2,n3,nfl1,nfu1,nfl2,nfu2,nfl3,nfu3,cbounds,wfd)
@@ -1362,54 +1363,41 @@ module bounds
     
     END SUBROUTINE make_logrid_f
 
-    pure function isf_box_buffers(peri_local,peri_global) result(nl)
+
+    subroutine geocode_buffers(geocode_local, geocode_global, nl1, nl2, nl3)
       implicit none
-      logical, dimension(3), intent(in) :: peri_local,peri_global
-      integer, dimension(3) :: nl
+      character(len=1), intent(in) :: geocode_local, geocode_global !< @copydoc poisson_solver::doc::geocode
+      integer, intent(out) :: nl1, nl2, nl3
       !local variables
-      integer, dimension(3) :: nr
-
-      call ext_buffers(peri_local,nl,nr)
+      logical :: perx_local, pery_local, perz_local
+      logical :: perx_global,pery_global,perz_global
+      integer :: nr1, nr2, nr3
+    
+      !conditions for periodicity in the three directions
+      perx_local=(geocode_local /= 'F')
+      pery_local=(geocode_local == 'P')
+      perz_local=(geocode_local /= 'F')
+      perx_global=(geocode_global /= 'F')
+      pery_global=(geocode_global == 'P')
+      perz_global=(geocode_global /= 'F')
+    
+      call ext_buffers(perx_local, nl1, nr1)
+      call ext_buffers(pery_local, nl2, nr2)
+      call ext_buffers(perz_local, nl3, nr3)
+    
       ! If the global box has non-free boundary conditions, the shift is already
-      ! contained in nsi1,nsi2,nsi3 and does not need to be subtracted.     
-      where(peri_global) nl=0
-    end function isf_box_buffers
-
-!!$    !should not be used anymore
-!!$    subroutine geocode_buffers(geocode_local, geocode_global, nl1, nl2, nl3)
-!!$      implicit none
-!!$      character(len=1), intent(in) :: geocode_local, geocode_global !< @copydoc poisson_solver::doc::geocode
-!!$      integer, intent(out) :: nl1, nl2, nl3
-!!$      !local variables
-!!$      logical :: perx_local, pery_local, perz_local
-!!$      logical :: perx_global,pery_global,perz_global
-!!$      integer :: nr1, nr2, nr3
-!!$    
-!!$      !conditions for periodicity in the three directions
-!!$      perx_local=(geocode_local /= 'F')
-!!$      pery_local=(geocode_local == 'P')
-!!$      perz_local=(geocode_local /= 'F')
-!!$      perx_global=(geocode_global /= 'F')
-!!$      pery_global=(geocode_global == 'P')
-!!$      perz_global=(geocode_global /= 'F')
-!!$    
-!!$      call ext_buffers(perx_local, nl1, nr1)
-!!$      call ext_buffers(pery_local, nl2, nr2)
-!!$      call ext_buffers(perz_local, nl3, nr3)
-!!$    
-!!$      ! If the global box has non-free boundary conditions, the shift is already
-!!$      ! contained in nsi1,nsi2,nsi3 and does not need to be subtracted.
-!!$      if (perx_global) then
-!!$          nl1 = 0
-!!$      end if
-!!$      if (pery_global) then
-!!$          nl2 = 0
-!!$      end if
-!!$      if (perz_global) then
-!!$          nl3 = 0
-!!$      end if
-!!$    
-!!$    end subroutine geocode_buffers
+      ! contained in nsi1,nsi2,nsi3 and does not need to be subtracted.
+      if (perx_global) then
+          nl1 = 0
+      end if
+      if (pery_global) then
+          nl2 = 0
+      end if
+      if (perz_global) then
+          nl3 = 0
+      end if
+    
+    end subroutine geocode_buffers
 
     pure function locreg_mesh_coarse_origin(mesh) result(or)
       use box, only: cell,cell_r,cell_periodic_dims

@@ -70,7 +70,7 @@ module locregs_init
       type(orbitals_data),optional,intent(in) :: lborbs
 
       ! Local variables
-      integer :: jorb, jjorb, jlr, ilr
+      integer :: jorb, jjorb, jlr
       character(len=*), parameter :: subname='initLocregs'
       logical,dimension(:), allocatable :: calculateBounds
       real(gp), dimension(3) :: hgrids
@@ -95,21 +95,6 @@ module locregs_init
          end do
       end if
 
-      ! make sure we have one locreg which is defined on all MPI so that we can use it for onsite overlap
-      ! need to make sure that there are no other bigger locrads
-      ! it would be helpful to make a variable indicating which locreg we have, but don't want to edit structures unnecessarily...
-      ! just in case there is some noise in the locrads
-!!$      lrtol=1.0e-3
-!!$      jlr=1
-!!$      maxlr=Lzd%Llr(jlr)%locrad
-!!$      do ilr=2,Lzd%nlr
-!!$         if (Lzd%Llr(ilr)%locrad > maxlr + lrtol) then
-!!$            jlr=ilr
-!!$            maxlr=Lzd%Llr(jlr)%locrad
-!!$         end if
-!!$      end do
-!!$      Lzd%llr_on_all_mpi=jlr
-
       hgrids=[hx,hy,hz]
       if(locregShape=='c') then
          calculateBounds=.true.
@@ -118,7 +103,7 @@ module locregs_init
          !stop 'locregShape c is deprecated'
       else if(locregShape=='s') then
          call determine_locregSphere_parallel(iproc, nproc, lzd%nlr, hx, hy, hz, &
-              orbs, Glr, lzd%Llr, calculateBounds, Lzd%llr_on_all_mpi)
+              orbs, Glr, lzd%Llr, calculateBounds)
       end if
       call f_free(calculateBounds)
 
@@ -203,13 +188,13 @@ module locregs_init
     end subroutine small_to_large_locreg
 
 
-    subroutine determine_locregSphere_parallel(iproc,nproc,nlr,hx,hy,hz,orbs,Glr,Llr,calculateBounds,llr_on_all_mpi)!,outofzone)
+    subroutine determine_locregSphere_parallel(iproc,nproc,nlr,hx,hy,hz,orbs,Glr,Llr,calculateBounds)!,outofzone)
     
       use module_base
       use module_types
       !use module_interfaces, except_this_one => determine_locregSphere_parallel
-      use communications, only: communicate_locreg_descriptors_keys
-      use box, only: cell_geocode,cell_periodic_dims
+      use communications, only: communicate_locreg_descriptors_basics, communicate_locreg_descriptors_keys
+      use bounds, only: locreg_bounds , ext_buffers
       implicit none
       integer, intent(in) :: iproc,nproc
       integer, intent(in) :: nlr
@@ -219,7 +204,6 @@ module locregs_init
       type(locreg_descriptors), intent(in) :: Glr
       type(locreg_descriptors), dimension(nlr), intent(inout) :: Llr
       logical,dimension(nlr),intent(in) :: calculateBounds
-      integer, intent(in) :: llr_on_all_mpi
     !  integer, dimension(3,nlr),intent(out) :: outofzone
       !local variables
       character(len=*), parameter :: subname='determine_locreg'
@@ -239,11 +223,10 @@ module locregs_init
       type(orbitals_data) :: orbsder
       logical :: perx, pery, perz
       real(gp), dimension(3) :: hgrids
-      logical, dimension(3) :: peri
-
+    
       call f_routine(id='determine_locregSphere_parallel')
     
-
+    
       rootarr = f_malloc(nlr,id='rootarr')
     
       ! Determine how many locregs one process handles at most
@@ -261,13 +244,9 @@ module locregs_init
       end do
     
       ! Periodicity in the three directions
-!!$      Gperx=(Glr%geocode /= 'F')
-!!$      Gpery=(Glr%geocode == 'P')
-!!$      Gperz=(Glr%geocode /= 'F')
-      peri=cell_periodic_dims(Glr%mesh)
-      Gperx=peri(1) 
-      Gpery=peri(2)
-      Gperz=peri(3)
+      Gperx=(Glr%geocode /= 'F')
+      Gpery=(Glr%geocode == 'P')
+      Gperz=(Glr%geocode /= 'F')
     
       call timing(iproc,'wfd_creation  ','ON')  
       do ilr=1,nlr
@@ -281,7 +260,7 @@ module locregs_init
 !!$         zperiodic = .false. 
     
     
-         if(calculateBounds(ilr) .or. ilr==llr_on_all_mpi) then 
+         if(calculateBounds(ilr)) then 
              ! This makes sure that each locreg is only handled once by one specific processor.
         
              ! Determine the extrema of this localization regions (using only the coarse part, since this is always larger or equal than the fine part).
@@ -294,31 +273,26 @@ module locregs_init
              hgrids = [hx,hy,hz]
              call lr_box(llr(ilr),Glr,hgrids,nbox,.false.)
             ! construct the wavefunction descriptors (wfd)
-            if (calculateBounds(ilr)) rootarr(ilr)=iproc
+            rootarr(ilr)=iproc
             call determine_wfdSphere(ilr,nlr,Glr,hx,hy,hz,Llr)
          end if
       end do !on ilr
       call timing(iproc,'wfd_creation  ','OF') 
     
       ! Communicate the locregs
+      ! This communication is uneffective. Instead of using bcast we should be using mpialltoallv.
       call timing(iproc,'comm_llr      ','ON')
       if (nproc > 1) then
          call fmpi_allreduce(rootarr(1), nlr, FMPI_MIN, comm=bigdft_mpi%mpi_comm)
-
-!!$         do ilr=1,nlr
-!!$            !!   if(.not. calculateBounds(ilr)) call lr_box(llr(ilr),Glr,[hx,hy,hz])
-!!$            write(*,*) 'iproc, nseg_c, before', iproc, llr(ilr)%wfd%nseg_c,rootarr(ilr)
-!!$         end do
-
          
          ! Communicate those parts of the locregs that all processes need.
-         call communicate_locreg_descriptors_basics(iproc, nproc, nlr, rootarr, llr)!orbs, llr)
+         call communicate_locreg_descriptors_basics(iproc, nproc, nlr, rootarr, orbs, llr)
     
-!!$         ! SM: Seems not to be necessary to be called again
-!!$         do ilr=1,nlr
-!!$         !!   if(.not. calculateBounds(ilr)) call lr_box(llr(ilr),Glr,[hx,hy,hz])
-!!$            write(*,*) 'iproc, nseg_c', iproc, llr(ilr)%wfd%nseg_c
-!!$         end do
+         ! SM: Seems not to be necessary to be called again
+         !!do ilr=1,nlr
+         !!   if(.not. calculateBounds(ilr)) call lr_box(llr(ilr),Glr,[hx,hy,hz])
+         !!   !    write(*,*) 'iproc, nseg_c', iproc, llr(ilr)%wfd%nseg_c
+         !!end do
     
          ! Now communicate those parts of the locreg that only some processes need (the keys).
          ! For this we first need to create orbsder that describes the derivatives.
@@ -332,9 +306,9 @@ module locregs_init
          !     onWhichMPIder(iiorb)=jproc
          !   end do
          !end do
-   
+    
          ! Now communicate the keys
-         call communicate_locreg_descriptors_keys(iproc, nproc, nlr, glr, llr, orbs, rootarr, onwhichmpi, llr_on_all_mpi)
+         call communicate_locreg_descriptors_keys(iproc, nproc, nlr, glr, llr, orbs, rootarr, onwhichmpi)
     
          !call deallocate_orbitals_data(orbsder)
          !call f_free(onwhichmpider)
@@ -344,15 +318,12 @@ module locregs_init
       !create the bound arrays for the locregs we need on the MPI tasks
       call timing(iproc,'calc_bounds   ','ON') 
       do ilr=1,nlr
-!             if (Llr(ilr)%geocode=='F' .and. (calculateBounds(ilr) .or. ilr==llr_on_all_mpi) ) then
-         if (cell_geocode(Llr(ilr)%mesh) =='F' .and. (calculateBounds(ilr)  .or. ilr==llr_on_all_mpi) ) &
-              call ensure_locreg_bounds(Llr(ilr))
-             !then
-             !!write(*,*) 'calling locreg_bounds, ilr', ilr
-             !call locreg_bounds(Llr(ilr)%d%n1,Llr(ilr)%d%n2,Llr(ilr)%d%n3,&
-             !Llr(ilr)%d%nfl1,Llr(ilr)%d%nfu1,Llr(ilr)%d%nfl2,Llr(ilr)%d%nfu2,&
-             !Llr(ilr)%d%nfl3,Llr(ilr)%d%nfu3,Llr(ilr)%wfd,Llr(ilr)%bounds)
-          !end if
+             if (Llr(ilr)%geocode=='F' .and. calculateBounds(ilr) ) then
+                !write(*,*) 'calling locreg_bounds, ilr', ilr
+                call locreg_bounds(Llr(ilr)%d%n1,Llr(ilr)%d%n2,Llr(ilr)%d%n3,&
+                     Llr(ilr)%d%nfl1,Llr(ilr)%d%nfu1,Llr(ilr)%d%nfl2,Llr(ilr)%d%nfu2,&
+                     Llr(ilr)%d%nfl3,Llr(ilr)%d%nfu3,Llr(ilr)%wfd,Llr(ilr)%bounds)
+             end if
       end do
     
       call timing(iproc,'calc_bounds   ','OF') 
@@ -368,6 +339,7 @@ module locregs_init
     subroutine determine_locreg_parallel(iproc,nproc,nlr,cxyz,locrad,hx,hy,hz,Glr,Llr,orbs,calculateBounds)!,outofzone)
       use module_base
       use module_types
+      use bounds, only: locreg_bounds, ext_buffers
       use box
       implicit none
       integer, intent(in) :: iproc,nproc
@@ -436,15 +408,14 @@ module locregs_init
     
          ! Sould check if nfu works properly... also relative to locreg!!
          !if the localisation region is isolated build also the bounds
-!!$         if (Llr(ilr)%geocode=='F') then
-         if (cell_geocode(Llr(ilr)%mesh) == 'F') then
+         if (Llr(ilr)%geocode=='F') then
             ! Check whether the bounds shall be calculated. Do this only if the currect process handles
             ! orbitals in the current localization region.
-            if(calculateBounds(ilr)) call ensure_locreg_bounds(Llr(ilr))
-            !call locreg_bounds(Llr(ilr)%d%n1,Llr(ilr)%d%n2,Llr(ilr)%d%n3,&
-            !       Llr(ilr)%d%nfl1,Llr(ilr)%d%nfu1,Llr(ilr)%d%nfl2,Llr(ilr)%d%nfu2,&
-            !Llr(ilr)%d%nfl3,Llr(ilr)%d%nfu3,Llr(ilr)%wfd,Llr(ilr)%bounds)
-            !end if
+            if(calculateBounds(ilr)) then
+               call locreg_bounds(Llr(ilr)%d%n1,Llr(ilr)%d%n2,Llr(ilr)%d%n3,&
+                   Llr(ilr)%d%nfl1,Llr(ilr)%d%nfu1,Llr(ilr)%d%nfl2,Llr(ilr)%d%nfu2,&
+                   Llr(ilr)%d%nfl3,Llr(ilr)%d%nfu3,Llr(ilr)%wfd,Llr(ilr)%bounds)
+            end if
          end if
       end do !on iilr
     
@@ -814,8 +785,7 @@ module locregs_init
          end if
 
          !If not, then don't use linear input guess (set linear to false)
-!!$         if(warningx .and. warningy .and. warningz .and. (Glr%geocode .ne. 'F')) then
-         if(warningx .and. warningy .and. warningz .and. (cell_geocode(Glr%mesh) .ne. 'F')) then
+         if(warningx .and. warningy .and. warningz .and. (Glr%geocode .ne. 'F')) then
             linear = .false.
             if(iproc == 0) then
                write(*,*)'Not using the linear scaling input guess, because localization'

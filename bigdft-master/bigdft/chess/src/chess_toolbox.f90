@@ -935,7 +935,7 @@ program chess_toolbox
                i = 0
            end if
        end if
-       call fmpi_bcast(i)!, root=0, comm=mpi_comm_world)
+       call mpibcast(i, root=0, comm=mpi_comm_world)
        if (i==1) then
            only_evals = .true.
        else
@@ -1274,7 +1274,7 @@ program chess_toolbox
            call f_close(iunit)
        end if
        if (iproc==0) call yaml_map('sum of total DoS',total_occup)
-       call fmpi_barrier()
+       call mpibarrier(mpiworld())
 
        call f_free(pdos)
        call f_free(denskernel)

@@ -416,7 +416,6 @@ module sparsematrix_wrappers
     subroutine determine_sparsity_pattern_distance(orbs, lzd, astruct, cutoff, nnonzero, nonzero, smat_ref)
       use module_types
       use sparsematrix_init, only: matrixindex_in_compressed
-      use box, only: cell_periodic_dims
       implicit none
 
       ! Calling arguments
@@ -434,9 +433,7 @@ module sparsematrix_wrappers
       integer :: iorb, iiorb, ilr, iwa, itype, jjorb, jlr, jwa, jtype, ii
       integer :: ijs1, ije1, ijs2, ije2, ijs3, ije3, ind
       real(kind=8) :: tt, cut, xi, yi, zi, xj, yj, zj, x0, y0, z0
-!!$      logical :: perx, pery, perz
-      logical :: present_smat_ref
-      logical, dimension(3) :: peri
+      logical :: perx, pery, perz, present_smat_ref
 
       call f_routine('determine_sparsity_pattern_distance')
       call timing(bigdft_mpi%iproc,'determinespars','ON')
@@ -444,27 +441,26 @@ module sparsematrix_wrappers
       present_smat_ref = present(smat_ref)
 
       ! periodicity in the three directions
-!!$      perx=(lzd%glr%geocode /= 'F')
-!!$      pery=(lzd%glr%geocode == 'P')
-!!$      perz=(lzd%glr%geocode /= 'F')
-      peri=cell_periodic_dims(lzd%glr%mesh)
+      perx=(lzd%glr%geocode /= 'F')
+      pery=(lzd%glr%geocode == 'P')
+      perz=(lzd%glr%geocode /= 'F')
       ! For periodic boundary conditions, one has to check also in the neighboring
       ! cells (see in the loop below)
-      if (peri(1)) then
+      if (perx) then
           ijs1 = -1
           ije1 = 1
       else
           ijs1 = 0
           ije1 = 0
       end if
-      if (peri(2)) then
+      if (pery) then
           ijs2 = -1
           ije2 = 1
       else
           ijs2 = 0
           ije2 = 0
       end if
-      if (peri(3)) then
+      if (perz) then
           ijs3 = -1
           ije3 = 1
       else

@@ -306,11 +306,11 @@ subroutine denspot_emit_rhov(denspot, iter, iproc, nproc)
         ! After handling the signal, iproc 0 broadcasts to other
         ! proc to continue (jproc == -1).
         message = SIGNAL_DONE
-        call fmpi_bcast(message, 1,comm=bigdft_mpi%mpi_comm)
+        call mpibcast(message, 1,comm=bigdft_mpi%mpi_comm)
      end if
   else
      do
-        call fmpi_bcast(message, 1,comm=bigdft_mpi%mpi_comm)
+        call mpibcast(message, 1,comm=bigdft_mpi%mpi_comm)
         if (message == SIGNAL_DONE) then
            exit
         else if (message == SIGNAL_DENSITY) then
@@ -360,11 +360,11 @@ subroutine denspot_emit_v_ext(denspot, iproc, nproc)
         ! After handling the signal, iproc 0 broadcasts to other
         ! proc to continue (jproc == -1).
         message = SIGNAL_DONE
-        call fmpi_bcast(message, 1,comm=bigdft_mpi%mpi_comm)
+        call mpibcast(message, 1,comm=bigdft_mpi%mpi_comm)
      end if
   else
      do
-        call fmpi_bcast(message, 1,comm=bigdft_mpi%mpi_comm)
+        call mpibcast(message, 1,comm=bigdft_mpi%mpi_comm)
         !call MPI_BCAST(message, 1, MPI_INTEGER, 0, bigdft_mpi%mpi_comm, ierr)
         if (message == SIGNAL_DONE) then
            exit
@@ -544,13 +544,15 @@ subroutine default_confinement_data(confdatarr,norbp)
   end do
 end subroutine default_confinement_data
 
+
+
+
 subroutine define_confinement_data(confdatarr,orbs,rxyz,at,hx,hy,hz,&
            confpotorder,potentialprefac,Lzd,confinementCenter)
   use module_base
   use module_types
   use locreg_operations, only: confpot_data
-  use locregs, only: get_isf_offset
-!!$  use bounds, only: geocode_buffers
+  use bounds, only: geocode_buffers
   implicit none
   real(gp), intent(in) :: hx,hy,hz
   type(atoms_data), intent(in) :: at
@@ -577,13 +579,10 @@ subroutine define_confinement_data(confdatarr,orbs,rxyz,at,hx,hy,hz,&
      confdatarr(iorb)%hh(2)=.5_gp*hy
      confdatarr(iorb)%hh(3)=.5_gp*hz
      confdatarr(iorb)%rxyzConf(1:3)=rxyz(1:3,icenter)!Lzd%Llr(ilr)%locregCenter(1:3)
-
-!!$     call geocode_buffers(Lzd%Llr(ilr)%geocode, lzd%glr%geocode, nl1, nl2, nl3)
-!!$     confdatarr(iorb)%ioffset(1)=lzd%llr(ilr)%nsi1-nl1-1
-!!$     confdatarr(iorb)%ioffset(2)=lzd%llr(ilr)%nsi2-nl2-1
-!!$     confdatarr(iorb)%ioffset(3)=lzd%llr(ilr)%nsi3-nl3-1
-     confdatarr(iorb)%ioffset(:)=get_isf_offset(lzd%llr(ilr),lzd%glr%mesh)
-
+     call geocode_buffers(Lzd%Llr(ilr)%geocode, lzd%glr%geocode, nl1, nl2, nl3)
+     confdatarr(iorb)%ioffset(1)=lzd%llr(ilr)%nsi1-nl1-1
+     confdatarr(iorb)%ioffset(2)=lzd%llr(ilr)%nsi2-nl2-1
+     confdatarr(iorb)%ioffset(3)=lzd%llr(ilr)%nsi3-nl3-1
      !confdatarr(iorb)%ioffset(1)=lzd%llr(ilr)%nsi1-1
      !confdatarr(iorb)%ioffset(2)=lzd%llr(ilr)%nsi2-1
      !confdatarr(iorb)%ioffset(3)=lzd%llr(ilr)%nsi3-1

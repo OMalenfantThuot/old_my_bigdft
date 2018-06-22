@@ -26,7 +26,11 @@
   if (present(source)) then
      srce=source
   end if
-  mpi_comm=fmpi_comm(comm)
+  if (present(comm)) then
+     mpi_comm=comm
+  else
+     mpi_comm=MPI_COMM_WORLD 
+  end if
   if (present(root)) then
      iroot=root
   else

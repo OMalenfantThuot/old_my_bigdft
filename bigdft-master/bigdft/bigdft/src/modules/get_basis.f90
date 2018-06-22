@@ -1314,8 +1314,7 @@ module get_basis
           else
              ncplx=1
           end if
-!!$          call allocate_work_arrays(lzd%llr(ilr)%geocode, lzd%llr(ilr)%hybrid_on, &
-          call allocate_work_arrays(lzd%llr(ilr)%mesh, lzd%llr(ilr)%hybrid_on, &
+          call allocate_work_arrays(lzd%llr(ilr)%geocode, lzd%llr(ilr)%hybrid_on, &
                ncplx, lzd%llr(ilr)%d, precond_workarrays(iorb))
       end do
     
@@ -1349,8 +1348,7 @@ module get_basis
           else
              ncplx=1
           end if
-!!$          call deallocate_work_arrays(lzd%llr(ilr)%geocode, lzd%llr(ilr)%hybrid_on, &
-          call deallocate_work_arrays(lzd%llr(ilr)%mesh, lzd%llr(ilr)%hybrid_on, &
+          call deallocate_work_arrays(lzd%llr(ilr)%geocode, lzd%llr(ilr)%hybrid_on, &
                ncplx, precond_workarrays(iorb))
       end do
       deallocate(precond_convol_workarrays)
@@ -2026,7 +2024,7 @@ module get_basis
           call f_routine(id='calculate_trace_finish')
           call timing(iproc,'calctrace_comm','ON')
           if (nproc>1) then
-              call fmpi_wait(request)
+              call mpiwait(request)
               trH = trH_recvbuf(1)
               trH_direct = trH_recvbuf(2)
           end if

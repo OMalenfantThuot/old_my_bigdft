@@ -12,7 +12,6 @@ Keys to ignore:
  - Maximal OpenMP threads per MPI task
  - OpenMP threads per task
  - OpenMP parallelization
- - radical
  - logfile
  - Memory*
  - Orbitals Repartition*
@@ -178,7 +177,7 @@ SiBulk:
  Last Iteration: 7.01e-10
  Atomic Forces (Ha/Bohr): 7.01e-10
  Clean forces norm (Ha/Bohr): 3.3e-10
- Force Norm (Hartree/Bohr): 4.3e-10
+ Force Norm (Hartree/Bohr): 2.7e-10
  Average noise forces: 9.3e-10
  HOMO LUMO gap (AU, eV): 1.8e-10
  PV (Ha): 1.89e-10
@@ -188,7 +187,7 @@ SiBulk:
  GPa: 2.0e-9
  Q matrix: 7.6e-9
  Quadrupole Moment (AU): 8.8e-11
- # Necessary for GPU runs
+ # Necessary for GPU runs, to be updated...
  Keys to ignore:
   - Residues per orbital
 
@@ -256,7 +255,6 @@ GEOPT-LBFGS:
 NaCl:
  Epsilon: 2.e-9
  Mean L2 norm of gaussian-wavelet difference: 1.358e-4
- Band Structure Energy: 2.2e-09
 
 NH3:
  Epsilon: 1.1e-10
@@ -384,19 +382,7 @@ test.testforces.ref.yaml:
  Tr(K): 3.0e-07
  trace(Ktilde): 3.4e-10
 
-SiH4-collocation:
- Atomic Forces (Ha/Bohr): 5e-9
- Average noise forces: 5e-11
- Clean forces norm (Ha/Bohr): 1e-9
- Electric Dipole Moment (AU): 1.5e-8
- Electric Dipole Moment (Debye): 5e-8
- Force Norm (Hartree/Bohr): 5e-9
- Raw forces norm (Ha/Bohr): 1e-9
- Energy (Hartree): 5e-8
- Energies: 5e-7
- Orbitals: 1e-8
- EKS: 5e-8
- Q matrix: 5e-8
+
 
 H2O-bader:
  Epsilon: 3.0e-11
@@ -466,7 +452,6 @@ NLCC: &NLCCsnew
  Atomic Forces (Ha/Bohr): 5.0e-11
  Clean forces norm (Ha/Bohr): 5.0e-11
  Total electronic charge: 1.2e-11
- Total stress tensor matrix (Ha/Bohr^3): 5e-11
  Value for Exc[rhoc]: 3.8e-9
  PV (Ha): 5.9e-11
  Exc(rhoc): 3.8e-9
@@ -1700,7 +1685,7 @@ O2spin_foe:
  D: 2.1e-7
  number of corrected points: 953
  total charge correction: 5.5e-09
- trace(KH): 7.8e-9
+ trace(KH): 7.7e-9
  norm(P): 1.1e-8
 
 O2spin_dirmin:
@@ -1731,7 +1716,7 @@ O2spin_dirmin:
  Force Norm (Hartree/Bohr): 3.45e-5
  Maxdiff for transpose (checksum): 5.9e-11
  number of corrected points: 33.0
- ENERGY: 3.3e-7
+ ENERGY: 3.1e-7
 
 verysparse:
  Total charge: 2.3e-8
@@ -1959,7 +1944,7 @@ periodic_wateredge:
  relative difference: 1.7e-11
  Epot: 1.1e-9
  Omega: 3.0e-10
- Enl: 3.1e-10
+ Enl: 2.1e-10
  EH: 1.1e-9
  EXC: 1.1e-10
  EvXC: 2.1e-10
@@ -2089,7 +2074,7 @@ multipoles_OH-:
  Unitary check of the multipole calculations: 6.1e-2
  Force Norm (Hartree/Bohr): 1.1e-10
  Maxdiff for transpose (checksum): 1.5e-11
- trace(KH): 1.8e-11
+ trace(KH): 1.2e-11
 
 multipoles_waterQM:
  Epot: 1.1e-10
@@ -2654,28 +2639,6 @@ Cavity_H2OfsccsPI:
   Keys to ignore:
    - Electronic charge changed by rho compression
 
-Mg-cubic_ortho:
-  Keys to ignore:
-   - radical
-  Q matrix: 7.5e-11
-
-Na8-periodic:
-  EH: 4.2e-11
-  EKS: 1.7e-11
-  EXC: 1.1e-10
-  Epot: 4.1e-11
-  EvXC: 3.1e-11
-  Total electronic charge: 5.6e-11
-  norm(P): 1.1e-10
-  trace: 6.6e-11
-
-
-Mg-cubic_ortho:
-  Keys to ignore:
-   - radical
-  Q matrix: 7.50e-11
-  Total ionic charge: 1.50e-11
-
 pexsi:
   Energy (Hartree): 2.3e-11
   Omega: 4.2e-11
@@ -2914,8 +2877,6 @@ matrixtaskgroups_no:
   EvXC: 1.1e-9
   EXC: 1.1e-9
   Enl: 3.0e-9
-  C: 1.4e-11
-  H: 1.5e-11
   Energy (Hartree): 4.1e-09
   Ion-Ion interaction energy: 2.9e-10
   Omega: 4.1e-09
@@ -2959,15 +2920,16 @@ matrixtaskgroups_yes:
   HOMO-LUMO gap (eV): 6.3e-11
   HYBRID: 4.0e-9
   TRACE: 4.0e-9
-  trace(KH): 5.1e-10
+  trace(KH): 4.1e-10
   Raw forces norm (Ha/Bohr): 3.6e-9
   Clean forces norm (Ha/Bohr): 3.9e-9
   Force Norm (Hartree/Bohr): 9.6e-11
   #Gross support functions moments: 1.1e-9
   Total ionic charge: 2.4e-10
   Maxdiff for transpose (checksum): 3.0e-11
+  C: 1.14e-11
   Multipole coefficients: 1.1e-9
-  Atomic Forces (Ha/Bohr): 1.5e-11
+  Atomic Forces (Ha/Bohr): 1.3e-11
   Keys to ignore:
    - Calculating wavelets expansion of projectors, found warnings
    - found warnings
@@ -3005,7 +2967,7 @@ metals_errorfunction:
    trace(KH): 3.1e-8
    EH: 5.4e-08
    Ekin: 2.0e-9
-   Enl: 1.3e-9
+   Enl: 1.2e-9
    Epot: 7.1e-9
    EvXC: 2.0e-8
    Force Norm (Hartree/Bohr): 7.1e-10
@@ -3024,7 +2986,7 @@ metals_errorfunction:
    TS: 1.2e-10
    q1: 1.1e-08
    relative difference: 1.3e-09
-   trace: 7.4e-11
+   trace: 6.8e-11
    Average noise forces: 9.1e-9
    Clean forces norm (Ha/Bohr): 7.7e-9
    Atomic Forces (Ha/Bohr): 9.2e-10
@@ -3056,7 +3018,7 @@ metals_fermifunction:
   energy: 5.3-10
   q2: 1.1e-10
   relative difference: 7.1e-11
-  trace: 6.7e-11
+  trace: 6.3e-11
   Average noise forces: 2.1e-10
   Raw forces norm (Ha/Bohr): 9.0e-11
 
@@ -3089,7 +3051,7 @@ metals_variable:
   q2: 8.1e-6
   relative difference: 1.5e-7
   total charge correction: 1.8e-8
-  trace: 8.1e-11
+  trace: 6.6e-11
   trace(KH): 2.7e-5
   trace(KS): 3.8e-10
   trace(Ktilde): 3.8e-10

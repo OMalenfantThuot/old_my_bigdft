@@ -30,13 +30,6 @@ Calculators to be used with BigDFT package to trigger runs of the code
 
 .. toctree:: BigDFT.Calculators
 
-(Py)BigDFT Tutorial page
-
-.. toctree:: 
-   :maxdepth: 1
-
-   tutorials
-
 Index of the Package
 ====================
 
