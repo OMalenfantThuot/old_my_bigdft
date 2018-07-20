@@ -1200,7 +1200,7 @@ subroutine image_calculate(img, iteration, id)
   use module_images
   use yaml_strings
   use bigdft_run, only: bigdft_state,bigdft_write_atomic_file,bigdft_set_input_policy,&
-       INPUT_POLICY_SCRATCH,INPUT_POLICY_MEMORY
+       INPUT_POLICY_SCRATCH,INPUT_POLICY_DISK
   implicit none
   type(run_image), intent(inout) :: img
   integer :: iteration
@@ -1214,9 +1214,11 @@ subroutine image_calculate(img, iteration, id)
   ! in details, because the worker may run several images, so it should
   ! restart from scratch since positions may be very different.
   !img%run%inputs%inputpsiid = 0
-  call bigdft_set_input_policy(INPUT_POLICY_SCRATCH,img%run)
-  if (iteration > 0 .and. abs(img%id - id) < 2) &
-       call bigdft_set_input_policy(INPUT_POLICY_SCRATCH,img%run) !img%run%inputs%inputpsiid = 0
+  if (iteration == 0) then
+      call bigdft_set_input_policy(INPUT_POLICY_SCRATCH,img%run)
+  else if (iteration > 0 .and. abs(img%id - id) < 2) then
+      call bigdft_set_input_policy(INPUT_POLICY_DISK,img%run) !img%run%inputs%inputpsiid = 0
+  end if
 
   unit_log = 0
   img%id = id
