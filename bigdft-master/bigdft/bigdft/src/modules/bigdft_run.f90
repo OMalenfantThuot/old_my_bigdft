@@ -2139,7 +2139,7 @@ contains
           end do
        end if
 
-       if ((runObj%inputs%inputPsiId == 'INPUT_PSI_LCAO' .or. runObj%inputs%inputPsiId == 'INPUT_PSI_DISK') .and.&
+       if ((runObj%inputs%inputPsiId == 'INPUT_PSI_LCAO' .or. runObj%inputs%inputPsiId == 'INPUT_PSI_DISK_WVL') .and.&
           associated(runObj%rst%KSwfn%psi)) then
           call f_free_ptr(runObj%rst%KSwfn%psi)
           call f_free_ptr(runObj%rst%KSwfn%orbs%eval)
