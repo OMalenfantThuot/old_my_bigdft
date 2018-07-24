@@ -2,14 +2,12 @@
 
 # Ma branche de BigDFT pour mes changements au code de base.
 
-# Branche merge_branch
-# - Branche temporaire pour intégrer les changements commités sur le Launchapd.
+Notes d'installation:
 
-#Branche work_geopt:
-# - Moins d itérations nécessaires pour la convergence des calculs de forces pour les routines BFGS et SQNM
-
-#Branche work_neb
-# - Correction de la méthode NEB originale
-
-#Branche work_neb2
-# - Ajout du terme de nudged sur le calcul du gradient du NEB
+1. mkdir ../build
+2. cd ../build
+3. S'assurer d'être dans le bon environnement
+    - Python 2.7 (alias lpy2 sur briarée et sur le laptop)
+    - compilateur openmpi version 1.x , (marche pas sur 3.x ?) (alias bigenv sur briarée, par défaut sur le laptop)
+4. cp ../bigdft-master/bigdft/rcfiles/briaree.rc buildrc (marche sur les deux)
+5. ../my_bigdft/bigdft-master/bigdft/Installer.py -f buildrc -v build -y
