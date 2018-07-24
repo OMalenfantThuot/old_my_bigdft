@@ -607,14 +607,15 @@ contains
        ELSE
           !! elastic gradient only along the path ( variable elastic constant is used )  
           elastic_gradient = &
-               ( k(2) * norm( cubic_pbc( pos0 - posm1, Lx, Ly, Lz ) ) - &
-                 k(3) * norm( cubic_pbc( posp1 - pos0, Lx, Ly, Lz ) ) ) * tgt
+                dot_product( ( k(2) * cubic_pbc( pos0 - posm1, Lx, Ly, Lz ) - &
+                               k(3) * cubic_pbc( posp1 - pos0, Lx, Ly, Lz ) ) , tgt)  * tgt
        END IF
 
+
        ! Terme de NEB selon l'article Jonsson et al., 1998.
-       allocate(cos_phi(ndim))
-       allocate(switching(ndim))
-       allocate(spring_ortho(ndim))
+
+       allocate(cos_phi(ndim),switching(ndim),spring_ortho(ndim))
+       
        cos_phi = dot_product((posp1 - pos0), (pos0 - posm1)) / (norm(posp1 - pos0) * norm(pos0 - posm1))
        switching = 0.5 * (1 + cos(Pi * cos_phi))
        spring_ortho = ( ( k(2) * cubic_pbc(pos0 - posm1, Lx, Ly, Lz)   &
@@ -623,10 +624,8 @@ contains
 
        grad = - PES_forces + elastic_gradient + dot_product( PES_forces, tgt ) * tgt + switching * spring_ortho
 
-       deallocate(elastic_gradient)
-       deallocate(cos_phi)
-       deallocate(switching)
-       deallocate(spring_ortho)
+       deallocate(elastic_gradient,cos_phi,switching,spring_ortho)
+    
     end if
   END SUBROUTINE compute_local_gradient
 
