@@ -455,9 +455,13 @@ MODULE NEB_routines
 
       ! update() is a mask of images to compute.
       update = .true.
-      do i = 1, size(imgs)
-         if (all(imgs(i)%outs%fxyz /= UNINITIALIZED(1.d0))) update(i) = .false.
-      end do
+      if (iteration > 0) then
+         update(1) = .false.
+         update(size(imgs)) = .false.
+      end if
+!      do i = 1, size(imgs)
+!         if (all(imgs(i)%outs%fxyz /= UNINITIALIZED(1.d0))) update(i) = .false.
+!      end do
 
       ! Do the calculations, distributing among taskgroups.
       call images_distribute_tasks(igroup, update, size(imgs), neb_mpi%nproc)
