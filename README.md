@@ -1,6 +1,7 @@
 # my_bigdft
 
 # Ma branche de BigDFT pour mes changements au code de base.
+# No longer used repository, all changes have been added in the [bigdft-suite](https://github.com/OMalenfantThuot/bigdft-suite/tree/my_branch) repo in my_branch.
 
 Notes d'installation:
 
